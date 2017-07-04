@@ -17,7 +17,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
     Registry.start_link(args)
   end
 
-  def subscribe(stream) when is_binary(stream) do
+  def subscribe(stream) do
     case Registry.register(@name, stream, nil) do
       {:ok, _} -> :ok
       error -> error

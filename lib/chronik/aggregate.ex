@@ -58,27 +58,27 @@ defmodule Chronik.Aggregate do
       # GenServer callbacks
 
       def init({aggregate, id}) do
-        {:ok, maybe_load_from_store(aggregate, id)}
+        {:ok, {aggregate, maybe_load_from_store(aggregate, id)}}
       end
 
       def handle_call(:get, _from, state) do
         {:reply, state, state}
       end
-      def handle_call(fun, _from, state) when is_function(fun, 1) do
+      def handle_call(fun, _from, {aggregate, state} = s) when is_function(fun, 1) do
         try do
           case fun.(state) do
             {nil, _} ->
-              {:stop, :normal, nil}
+              {:stop, :normal, {aggregate, nil}}
             {_state, {:error, _message} = error} ->
-              {:reply, error, state}
+              {:reply, error, s}
             {new_state, notifications} ->
               aggregate_id = get_aggregate_id(new_state)
               {:ok, new_offset, records} = @store.append(aggregate_id, notifications, version: :any)
-              @pubsub.broadcast(aggregate_id, records)
-              {:reply, {:ok, new_offset, records}, new_state}
+              @pubsub.broadcast({aggregate, aggregate_id}, records)
+              {:reply, {:ok, new_offset, records}, {aggregate, new_state}}
           end
         rescue
-          e -> {:reply, {:error, e}, state}
+          e -> {:reply, {:error, e}, s}
         end
       end
 
