@@ -10,7 +10,7 @@ defmodule Chronik.Store do
     quote bind_quoted: [opts: opts] do
       @behaviour Chronik.Store
 
-      {cfg, adapter} = Chronik.Store.Supervisor.fetch_config(__MODULE__, opts)
+      {cfg, adapter} = Chronik.Config.fetch_config(__MODULE__, opts)
 
       @adapter adapter
       @config  cfg
@@ -41,13 +41,6 @@ defmodule Chronik.Store do
 
   @typedoc "The options given for reading events from the stream"
   @type options :: Keyword.t
-
-  @doc """
-  Initialize the domain event store
-
-  Returns `:ok` on success or `{:error, message}` in case of failure.
-  """
-  @callback init() :: :ok | {:error, String.t}
 
   @doc """
   Append a list of events to a stream.

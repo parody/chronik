@@ -8,7 +8,14 @@ defmodule Chronik.PubSub do
     quote bind_quoted: [opts: opts] do
       @behaviour Chronik.PubSub
 
-      @adapter Application.get_env(opts[:otp_app], __MODULE__)[:adapter] || raise Chronik.MissingPubSubError
+      {cfg, adapter} = Chronik.Config.fetch_config(__MODULE__, opts)
+
+      @adapter adapter
+      @config  cfg
+
+      # API
+
+      def config, do: %{adapter: @adapter, config: @config}
 
       defdelegate child_spec(args), to: @adapter
       defdelegate start_link(args), to: @adapter
