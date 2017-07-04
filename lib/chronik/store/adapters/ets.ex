@@ -3,24 +3,25 @@ defmodule Chronik.Store.Adapters.ETS do
   ETS event adapter
   """
 
+  use GenServer
+
   alias Chronik.Store.EventRecord
 
   @behaviour Chronik.Store
 
+  @name  __MODULE__
   @table __MODULE__
 
   # API
 
-  def init do
-    try do
-      _ref = :ets.new(@table, [:set, :named_table, :public])
-      :ok
-    rescue
-      _ -> {:error, "event store already started"}
-    end
+  def child_spec(_store, opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent
+    }
   end
-
-  # Proposed API
 
   def append(stream, events, opts \\ [version: :any]) do
     {current_events, current_offset} =
@@ -45,8 +46,6 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def fetch(stream, offset \\ 0) when is_binary(stream) and offset >= 0 do
-    # opts.timeout
-
     case get_stream(stream) do
       :not_found ->
         {:error, "stream not found"}
@@ -55,6 +54,20 @@ defmodule Chronik.Store.Adapters.ETS do
       current_events ->
         Stream.filter(current_events, fn(event) -> event.event_number >= offset end) |> Enum.to_list
         # Enum.at(current_events, offset, {:error, "event #{offset} not found"})
+    end
+  end
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, [opts], name: @name)
+  end
+
+  # GenServer callbacks
+
+  def init(_args) do
+    try do
+      {:ok, :ets.new(@table, [:set, :named_table, :public])}
+    rescue
+      _ -> {:stop, {:error, "event store already started"}}
     end
   end
 
@@ -70,7 +83,8 @@ defmodule Chronik.Store.Adapters.ETS do
   # FIXME: might have an unintended effect due to a possible race condition
   defp insert(stream, events) do
     true = :ets.insert(@table, {stream, events})
-    :ok
+    last = List.last(events)
+    {:ok, last.event_number + 1, events}
   end
 
   defp from_enum(stream, offset, data) do
