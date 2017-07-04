@@ -4,14 +4,14 @@ defmodule Chronik.Store.Adapters.ETSTest do
   @adapter Chronik.Store.Adapters.ETS
 
   setup_all do
-    @adapter.init()
+    @adapter.init(nil)
     {:ok, %{adapter: @adapter}}
   end
 
   test "insert events", %{adapter: adapter} do
-    assert adapter.append("test_stream1", [:event1, :event2]) == :ok
+    assert {:ok, 2, _} = adapter.append("test_stream1", [:event1, :event2])
     assert adapter.append("test_stream1", [:event1], version: :no_stream) == {:error, "wrong expected version"}
-    assert adapter.append("test_stream1", [:event3], version: 1) == :ok
+    assert {:ok, 3, _} = adapter.append("test_stream1", [:event3], version: 1)
     assert adapter.append("test_stream1", [:event4], version: 1) == {:error, "wrong expected version"}
   end
 
@@ -36,6 +36,7 @@ defmodule Chronik.Store.Adapters.ETSTest do
   end
 
   test "singleton domain event store", %{adapter: adapter} do
-    assert {:error, _} = adapter.init()
+    {error, _} = adapter.init(nil)
+    assert error != :ok
   end
 end
