@@ -5,7 +5,7 @@ defmodule Chronik.Store.Adapters.ETS do
 
   use GenServer
 
-  alias Chronik.Store.EventRecord
+  alias Chronik.EventRecord
 
   @behaviour Chronik.Store
 
