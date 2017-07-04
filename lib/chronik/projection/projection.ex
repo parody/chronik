@@ -7,7 +7,7 @@ defmodule Chronik.Projection do
 
   defmacro __using__(_opts) do
     quote do
-      use GenServer
+      use GenServer, restart: :transient
 
       alias Chronik.{PubSub, Store}
 
@@ -28,6 +28,10 @@ defmodule Chronik.Projection do
         # The definition must include a list of streams (and maybe the all keyword?).
         # This definition can be an initial snapshot?
         {:ok, nil}
+      end
+
+      def handle_info({:next_state, event}, state) do
+        {:noreply, next_state(state, event)}
       end
 
       # Internal functions
