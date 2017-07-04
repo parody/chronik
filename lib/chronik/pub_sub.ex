@@ -17,10 +17,20 @@ defmodule Chronik.PubSub do
 
       def config, do: %{adapter: @adapter, config: @config}
 
-      defdelegate child_spec(args), to: @adapter
-      defdelegate start_link(args), to: @adapter
       defdelegate subscribe(stream), to: @adapter
       defdelegate broadcast(stream, events), to: @adapter
+
+      def child_spec(opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, [opts]},
+          type: :supervisor
+        }
+      end
+
+      def start_link(opts \\ []) do
+        Chronik.PubSub.Supervisor.start_link(__MODULE__, @adapter, opts)
+      end
 
       defoverridable child_spec: 1
     end
