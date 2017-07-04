@@ -16,6 +16,11 @@ defmodule Chronik.Aggregate do
 
       @registry Chronik.AggregateRegistry
 
+      {store, pubsub} = Chronik.Config.fetch_adapters()
+
+      @store store
+      @pubsub pubsub
+
       # API
 
       def execute(state, fun) do
@@ -31,11 +36,11 @@ defmodule Chronik.Aggregate do
       def call(aggregate_id, function) do
         case Registry.lookup(@registry, aggregate_id) do
           [] ->
-            case Chronik.Aggregate.Supervisor.start_aggregate(aggregate_id) do
+            case Chronik.Aggregate.Supervisor.start_aggregate(__MODULE__, aggregate_id) do
               {:ok, pid} ->
                 GenServer.call(pid, function)
-              {:error, _} ->
-                raise "cannot create process for aggregate root #{aggregate_id}"
+              {:error, reason} ->
+                raise "cannot create process for aggregate root #{aggregate_id}: #{inspect reason}"
             end
           [{pid, _metadata}] ->
             GenServer.call(pid, function)
@@ -46,14 +51,14 @@ defmodule Chronik.Aggregate do
         GenServer.call(via(aggregate_id), :get)
       end
 
-      def start_link(aggregate_id) do
-        GenServer.start_link(__MODULE__, aggregate_id, name: via(aggregate_id))
+      def start_link(id) do
+        GenServer.start_link(__MODULE__, {__MODULE__, id}, name: via({__MODULE__, id}))
       end
 
       # GenServer callbacks
 
-      def init(aggregate_id) do
-        {:ok, maybe_load_from_store(aggregate_id)}
+      def init({aggregate, id}) do
+        {:ok, maybe_load_from_store(aggregate, id)}
       end
 
       def handle_call(:get, _from, state) do
@@ -68,9 +73,9 @@ defmodule Chronik.Aggregate do
               {:reply, error, state}
             {new_state, notifications} ->
               aggregate_id = get_aggregate_id(new_state)
-              Store.append(aggregate_id, notifications, version: :any)
-              PubSub.broadcast(aggregate_id, notifications)
-              {:reply, :ok, new_state}
+              {:ok, new_offset, records} = @store.append(aggregate_id, notifications, version: :any)
+              @pubsub.broadcast(aggregate_id, records)
+              {:reply, {:ok, new_offset, records}, new_state}
           end
         rescue
           e -> {:reply, {:error, e}, state}
@@ -79,15 +84,15 @@ defmodule Chronik.Aggregate do
 
       # Internal functions
 
-      defp via(aggregate_id) do
-        {:via, Registry, {Chronik.AggregateRegistry, aggregate_id}}
+      defp via({aggregate, id}) do
+        {:via, Registry, {Chronik.AggregateRegistry, {aggregate, id}}}
       end
 
       # Loads the aggregate state from the domain event store.
       # It returns the state on success or nil if there is no recorded domain
       # events for the aggregate.
-      defp maybe_load_from_store(aggregate_id) do
-        case Store.fetch(aggregate_id) do
+      defp maybe_load_from_store(_aggregate, id) do
+        case @store.fetch(id) do
           {:error, "stream not found"} ->
             nil
           events ->
@@ -96,6 +101,12 @@ defmodule Chronik.Aggregate do
       end
     end
   end
+
+  def start_link(aggregate, id) do
+    aggregate.start_link(id)
+  end
+
+  # Callbacks
 
   @callback get_aggregate_id(Chronik.state) :: term()
   @callback handle_command(Chronik.command) :: :ok | {:error, term()}

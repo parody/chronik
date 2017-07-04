@@ -8,19 +8,19 @@ defmodule Chronik.Aggregate.Supervisor do
   # API
 
   @doc "Start an aggregate by `id`"
-  @spec start_aggregate(String.t) :: {:ok, pid()} | {:error, term()}
-  def start_aggregate(id) do
-    Supervisor.start_child(__MODULE__, [id])
+  @spec start_aggregate(aggregate :: atom, String.t) :: {:ok, pid()} | {:error, term()}
+  def start_aggregate(aggregate, id) do
+    Supervisor.start_child(__MODULE__, [aggregate, id])
   end
 
-  def start_link do
+  def start_link(_opts) do
     Supervisor.start_link(__MODULE__, [], name: @name)
   end
 
   # Supervisor callbacks
 
-  def init(_args) do
-    child = worker(Chronik.Event, [], restart: :transient)
+  def init(_opts) do
+    child = worker(Chronik.Aggregate, [], restart: :transient)
     supervise([child], strategy: :simple_one_for_one)
   end
 end
