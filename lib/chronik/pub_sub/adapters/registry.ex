@@ -17,18 +17,23 @@ defmodule Chronik.PubSub.Adapters.Registry do
     Registry.start_link(args)
   end
 
-  def subscribe(stream) do
-    case Registry.register(@name, stream, nil) do
+  def subscribe(stream, predicate \\ fn _ -> true end) when is_function(predicate) do
+    case Registry.register(@name, stream, predicate) do
       {:ok, _} -> :ok
-      error -> error
+      {:error, {:already_register, _}} -> {:error, "already_register"}
     end
+  end
+
+  def unsubscribe(stream) do
+    Registry.unregister(@name, stream)
   end
 
   def broadcast(stream, events) do
     for event <- events do
       Registry.dispatch(@name, stream,
-        &(for {pid, _} <- &1, do: send(pid, event)))
+        &(for {pid, predicate} <- &1, predicate.(event), do: send(pid, event)))
     end
     :ok
   end
+
 end
