@@ -52,7 +52,8 @@ defmodule Chronik.Store.Adapters.ETS do
       current_events when offset == :all ->
         {:ok, length(current_events) - 1, Enum.to_list(current_events)}
       current_events ->
-        events = current_events
+        events = 
+          current_events
           |> Stream.filter(&(&1.offset > offset))
           |> Enum.to_list
         {:ok, offset + length(events), events}
