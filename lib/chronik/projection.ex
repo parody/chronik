@@ -138,7 +138,7 @@ defmodule Chronik.Projection do
           new_state =
             cond do
               offset == consumer_offset ->
-                GenServer.cast(state.projection, {:next_state, e.data})
+                :ok = GenServer.cast(state.projection, {:next_state, e.data})
                 %{state | cursors: Map.put(state.cursors, stream, offset + 1)}
 
               offset <= consumer_offset ->
@@ -146,7 +146,8 @@ defmodule Chronik.Projection do
 
               offset > consumer_offset ->
                 {:ok, new_offset, events} = store.fetch(stream, offset)
-                for event <- events, do: GenServer.cast(projection, {:next_state, event})
+                for event <- events,
+                  do: :ok = GenServer.cast(projection, {:next_state, event})
                 %{state | cursors: Map.put(state.cursors, stream, new_offset)}
             end
 
