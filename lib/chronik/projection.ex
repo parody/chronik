@@ -43,8 +43,8 @@ defmodule Chronik.Projection do
       def start_link(opts) do
         consumer_args = [@store, @pubsub, @worker, opts]
         worker_args = [@projection]
-        children = [{Module.concat([__MODULE__, Worker]), worker_args},
-                    {Module.concat([__MODULE__, Consumer]), consumer_args}]
+        children = [{@worker, worker_args},
+                    {@consumer, consumer_args}]
         Chronik.Projection.Supervisor.start_link(__MODULE__, children)
       end
     end
