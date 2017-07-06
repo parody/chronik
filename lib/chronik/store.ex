@@ -47,12 +47,18 @@ defmodule Chronik.Store do
 
   `stream` is the stream where the events are appended
 
-  `expected_version` indicates the optimistic concurrency checks to
-  perform at the moment of writing to the stream.
-
   `domain_events` an enumberable with the events to append.
 
-  The return values are `:ok` on success or `{:error, message}` in case of failure.
+  `options` is a keyword indicating the optimistic concurrency checks to
+  perform at the moment of writing to the stream.
+
+  Currently the `options` keyword allows  `version` key with values:
+  - `:any`: append to the end of the stream
+  - `:no_stream`: create the stream and append the events. If the stream already
+  exists on the Store `{:error, "wrong expected version"}` is returned.
+  - A non negative integer indicating the last seen value.
+
+  The return values are `{:ok, last_inserted_offset}s` on success or `{:error, message}` in case of failure.
 
   ## Versioning
 
@@ -64,7 +70,7 @@ defmodule Chronik.Store do
     - any other integer value - the event number expected to currently
       be at
   """
-  @callback append(stream :: Chronik.stream, events :: [Chronik.event], options :: options) :: {:ok, non_neg_integer}
+  @callback append(stream :: Chronik.stream, domain_events :: [Chronik.event], options :: options) :: {:ok, non_neg_integer}
                                                               | {:error, String.t}
 
   @doc """
@@ -72,7 +78,7 @@ defmodule Chronik.Store do
 
   `stream` is the stream to read from.
 
-  Possible `offset` values are :all (default value) or an non negative integer 
+  Possible `offset` values are `:all` (default value) or an non negative integer
   indicating starting read position. Event at `offset` is not included in the result.
 
   The return values are `{:ok, offset, [events]}` or `{:error, message}` in case of failure.
