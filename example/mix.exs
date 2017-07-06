@@ -7,6 +7,7 @@ defmodule Example.Mixfile do
       version: "0.1.0",
       elixir: "~> 1.5-rc",
       start_permanent: Mix.env == :prod,
+      dialyzer: dialyzer(),
       deps: deps()
     ]
   end
@@ -18,8 +19,18 @@ defmodule Example.Mixfile do
     ]
   end
 
+  defp dialyzer do
+    [
+      flags: ["-Wunmatched_returns",
+              :error_handling,
+              :race_conditions,
+              :underspecs]
+    ]
+  end
+
   defp deps do
     [
+      {:dialyxir, "> 0.0.0", only: :dev},
       {:chronik, path: "../."}
     ]
   end
