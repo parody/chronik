@@ -9,7 +9,6 @@ defmodule Chronik.Mixfile do
       start_permanent: Mix.env == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [coveralls: :test],
-      dialyzer: dialyzer(),
       deps: deps()
     ]
   end
@@ -21,12 +20,7 @@ defmodule Chronik.Mixfile do
     ]
   end
 
-  defp dialyzer do
     [
-      flags: ["-Wunmatched_returns",
-              :error_handling,
-              :race_conditions,
-              :underspecs]
     ]
   end
 
@@ -36,7 +30,6 @@ defmodule Chronik.Mixfile do
       {:ex_doc, "> 0.0.0", only: :docs},
 
       # Development
-      {:dialyxir, "> 0.0.0", only: :dev},
       {:excoveralls, "> 0.0.0", only: :test},
       {:credo, "> 0.0.0", only: :dev}
     ]
