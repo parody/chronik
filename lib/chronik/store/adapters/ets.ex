@@ -1,7 +1,5 @@
 defmodule Chronik.Store.Adapters.ETS do
-  @moduledoc """
-  ETS event adapter
-  """
+  @moduledoc false
 
   use GenServer
 

@@ -1,7 +1,5 @@
 defmodule Chronik.PubSub.Adapters.Registry do
-  @moduledoc """
-  Registry adapter for PubSub
-  """
+  @moduledoc false
 
   @behaviour Chronik.PubSub
 
