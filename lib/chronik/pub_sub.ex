@@ -17,7 +17,7 @@ defmodule Chronik.PubSub do
 
       def config, do: %{adapter: @adapter, config: @config}
 
-      defdelegate subscribe(stream, predicate), to: @adapter
+      defdelegate subscribe(stream, predicate \\ fn _ -> true end), to: @adapter
       defdelegate unsubscribe(stream), to: @adapter
       defdelegate broadcast(stream, events), to: @adapter
 
