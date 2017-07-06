@@ -24,7 +24,7 @@ defmodule Chronik.Aggregate do
       # API
 
       def execute(state, fun) do
-        events = fun.(state) |> List.wrap()
+        events = state |> fun.() |> List.wrap()
         new_state = Enum.reduce(events, state, &next_state(&2, &1))
         {new_state, events}
       end

@@ -1,14 +1,18 @@
 defmodule Chronik.Projection.Supervisor do
+  @moduledoc false
+
   use Supervisor
 
-  alias Chronik.Projection
-  alias Chronik.Projection.Consumer
+  # API
 
-  def init(projection_id) do
-    children = [
-      {Projection, []},
-      {Consumer, []}
-    ]
-    supervise(children, strategy: :one_for_all)
+  def start_link(mod, children) do
+    name = Module.concat([mod, Supervisor])
+    Supervisor.start_link(__MODULE__, children, name: name)
+  end
+
+  # Supervisor callbacks
+
+  def init(children) do
+    Supervisor.init(children, strategy: :one_for_all)
   end
 end
