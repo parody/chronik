@@ -7,14 +7,6 @@ defmodule Chronik.PubSub.Adapters.Registry do
 
   # API
 
-  def child_spec(args) do
-    Registry.child_spec(keys: :duplicate, name: args[:name] || @name)
-  end
-
-  def start_link(args) do
-    Registry.start_link(args)
-  end
-
   def subscribe(stream, predicate \\ fn _ -> true end)
     when is_function(predicate) do
       {:ok, _} = Registry.register(@name, stream, predicate)
@@ -33,4 +25,11 @@ defmodule Chronik.PubSub.Adapters.Registry do
     :ok
   end
 
+  def child_spec(args) do
+    Registry.child_spec(keys: :duplicate, name: args[:name] || @name)
+  end
+
+  def start_link(args) do
+    Registry.start_link(args)
+  end
 end

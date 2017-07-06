@@ -37,34 +37,33 @@ defmodule Chronik.PubSub do
     end
   end
 
-
-  # API
-
   @doc """
   Initialize the domain event bus
 
-  Returns `{:ok, pid}` on success or `{:error, message}` in case of failure.
+  Returns `{:ok, pid}` on success or `{:error, message}` in case of
+  failure.
   """
   @callback start_link(Keyword.t) :: {:ok, pid()} | {:error, String.t}
 
   @doc """
-  Subscribes the caller to the `stream` optionally filtering out events
-  that do not satisfy the `predicate`.
+  Subscribes the caller to the `stream` optionally filtering out
+  events that do not satisfy the `predicate`.
 
   If no `predicate` is given, all events are sent to the caller.
 
-  Multiple subscriptions to the same `stream` are allowed. The subscriber
-  will receive the events multiple times.
+  Multiple subscriptions to the same `stream` are allowed. The
+  subscriber will receive the events multiple times.
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback subscribe(stream :: Chronik.stream, predicate :: Chronik.predicate) :: Chronik.result_status
+  @callback subscribe(stream    :: Chronik.stream,
+                      predicate :: Chronik.predicate) :: Chronik.result_status
 
 
   @doc """
-  Unsubscribes the caller from the `stream`. No further events should be
-  received from this stream. Note: events from the stream could still be
-  on the mailbox.
+  Unsubscribes the caller from the `stream`. No further events should
+  be received from this stream. Note: events from the stream could
+  still be on the mailbox.
 
   Returns `:ok` on succes or `{:error, message}` in case of failure.
   """
@@ -75,5 +74,6 @@ defmodule Chronik.PubSub do
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback broadcast(stream :: Chronik.stream, events :: Chronik.events) :: Chronik.result_status
+  @callback broadcast(stream :: Chronik.stream,
+                      events :: Chronik.events) :: Chronik.result_status
 end
