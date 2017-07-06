@@ -134,7 +134,7 @@ defmodule Chronik.Projection do
 
         def handle_info(%EventRecord{stream: stream, offset: offset} = e,
                         %{store: store, projection: projection} = state) do
-          consumer_offset = Map.get(state.cursors, stream)
+          consumer_offset = Map.get(state.cursors, stream, 0)
           new_state =
             cond do
               offset == consumer_offset ->
