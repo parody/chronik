@@ -21,7 +21,6 @@ defmodule Chronik.PubSub do
       defdelegate unsubscribe(stream), to: @adapter
       defdelegate broadcast(stream, events), to: @adapter
 
-
       def child_spec(opts) do
         %{
           id: __MODULE__,
@@ -50,12 +49,16 @@ defmodule Chronik.PubSub do
 
   @doc """
   Subscribes the caller to the `stream` optionally filtering out events
-  that do not satisfies the `predicate`.
+  that do not satisfy the `predicate`.
+
   If no `predicate` is given, all events are sent to the caller.
+
+  Multiple subscriptions to the same `stream` are allowed. The subscriber
+  will receive the events multiple times.
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback subscribe(Chronik.stream, Chronik.predicate) :: Chronik.result_status
+  @callback subscribe(stream :: Chronik.stream, predicate :: Chronik.predicate) :: Chronik.result_status
 
 
   @doc """
@@ -65,12 +68,12 @@ defmodule Chronik.PubSub do
 
   Returns `:ok` on succes or `{:error, message}` in case of failure.
   """
-  @callback unsubscribe(Chronik.stream) :: Chronik.result_status
+  @callback unsubscribe(stream :: Chronik.stream) :: Chronik.result_status
 
   @doc """
-  Broadcasts a `events` enumeration to the `stream`
+  Broadcasts a list of `events` enumeration to the `stream`
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback broadcast(Chronik.stream, Chronik.events) :: Chronik.result_status
+  @callback broadcast(stream :: Chronik.stream, events :: Chronik.events) :: Chronik.result_status
 end

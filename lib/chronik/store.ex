@@ -64,20 +64,19 @@ defmodule Chronik.Store do
     - any other integer value - the event number expected to currently
       be at
   """
-  @callback append(Chronik.stream, [Chronik.event], options) :: {:ok, non_neg_integer}
+  @callback append(stream :: Chronik.stream, events :: [Chronik.event], options :: options) :: {:ok, non_neg_integer}
                                                               | {:error, String.t}
 
   @doc """
-  Read a single event from stream.
+  Retrieves all events from the stream starting (but not including) at `offset`.
 
   `stream` is the stream to read from.
 
   Possible `offset` values are :all (default value) or an non negative integer 
   indicating starting read position. Event at `offset` is not included in the result.
 
-  The return values are an event term or `{:error, message}` in case of failure.
+  The return values are `{:ok, offset, [events]}` or `{:error, message}` in case of failure.
   """
-
-  @callback fetch(Chronik.stream, non_neg_integer | atom) :: {:ok, non_neg_integer, [EventRecord.t]}
+  @callback fetch(stream :: Chronik.stream, offset :: non_neg_integer | atom) :: {:ok, non_neg_integer, [EventRecord.t]}
                                                     | {:error, String.t}
 end
