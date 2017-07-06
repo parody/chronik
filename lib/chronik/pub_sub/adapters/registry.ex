@@ -17,11 +17,10 @@ defmodule Chronik.PubSub.Adapters.Registry do
     Registry.start_link(args)
   end
 
-  def subscribe(stream, predicate \\ fn _ -> true end) when is_function(predicate) do
-    case Registry.register(@name, stream, predicate) do
-      {:ok, _} -> :ok
-      {:error, {:already_register, _}} -> {:error, "already_register"}
-    end
+  def subscribe(stream, predicate \\ fn _ -> true end)
+    when is_function(predicate) do
+      {:ok, _} = Registry.register(@name, stream, predicate)
+      :ok
   end
 
   def unsubscribe(stream) do
