@@ -1,11 +1,9 @@
 defmodule Chronik.Store.Adapters.ETS do
-  @moduledoc """
-  ETS event adapter
-  """
+  @moduledoc false
 
   use GenServer
 
-  alias Chronik.Store.EventRecord
+  alias Chronik.EventRecord
 
   @behaviour Chronik.Store
 
@@ -30,13 +28,13 @@ defmodule Chronik.Store.Adapters.ETS do
           {[], -1}
         current_events ->
           # FIXME: Use another data type for storing events instead of List
-          {current_events, current_events |> List.last |> Map.get(:event_number)}
+          {current_events, current_events |> List.last |> Map.get(:offset)}
       end
 
     case Keyword.get(opts, :version) do
       :any ->
         insert(stream, current_events ++ from_enum(stream, current_offset + 1, events))
-      :no_stream when current_offset == 0 ->
+      :no_stream when current_offset == -1 ->
         insert(stream, from_enum(stream, 0, events))
       version when is_number(version) and current_offset == version ->
         insert(stream, current_events ++ from_enum(stream, current_offset + 1, events))
@@ -45,15 +43,18 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
-  def fetch(stream, offset \\ 0) when is_binary(stream) and offset >= 0 do
+  def fetch(stream, offset \\ :all) when is_binary(stream) and (offset >= 0 or offset == :all) do
     case get_stream(stream) do
       :not_found ->
         {:error, "stream not found"}
-      current_events when offset == 0 ->
-        Stream.drop(current_events, offset) |> Enum.to_list
+      current_events when offset == :all ->
+        {:ok, length(current_events) - 1, Enum.to_list(current_events)}
       current_events ->
-        Stream.filter(current_events, fn(event) -> event.event_number >= offset end) |> Enum.to_list
-        # Enum.at(current_events, offset, {:error, "event #{offset} not found"})
+        events = 
+          current_events
+          |> Stream.filter(&(&1.offset > offset))
+          |> Enum.to_list
+        {:ok, offset + length(events), events}
     end
   end
 
@@ -84,7 +85,7 @@ defmodule Chronik.Store.Adapters.ETS do
   defp insert(stream, events) do
     true = :ets.insert(@table, {stream, events})
     last = List.last(events)
-    {:ok, last.event_number + 1, events}
+    {:ok, last.offset, events}
   end
 
   defp from_enum(stream, offset, data) do

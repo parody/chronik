@@ -47,36 +47,51 @@ defmodule Chronik.Store do
 
   `stream` is the stream where the events are appended
 
-  `expected_version` indicates the optimistic concurrency checks to
-  perform at the moment of writing to the stream.
+  `events` an enumberable with the events to append.
 
-  `domain_events` an enumberable with the events to append.
+  `options` is a keyword indicating the optimistic concurrency checks
+  to perform at the moment of writing to the stream.
 
-  The return values are `:ok` on success or `{:error, message}` in case of failure.
+  Currently the `options` keyword allows  `version` key with values:
+
+    - `:any`: append to the end of the stream
+
+    - `:no_stream`: create the stream and append the events. If the
+      stream already exists on the Store `{:error, "wrong expected
+      version"}` is returned.
+
+    - A non negative integer indicating the last seen value.
+
+  The return values are `{:ok, last_inserted_offset}` on success or
+  `{:error, message}` in case of failure.
 
   ## Versioning
 
   Possible values are:
 
-    - `:any` - no checks are performed, the events are always written
-    - `:no_stream` - verifies that the target stream does not exists
+    - `:any`: no checks are performed, the events are always written
+
+    - `:no_stream`: verifies that the target stream does not exists
       yet
-    - any other integer value - the event number expected to currently
+
+    - any other integer value: the event number expected to currently
       be at
   """
-  @callback append(Chronik.stream, [Chronik.event], options) :: {:ok, non_neg_integer}
-                                                              | {:error, String.t}
+  @callback append(stream  :: Chronik.stream,
+                   events  :: [Chronik.event],
+                   options :: options) :: {:ok, non_neg_integer} | {:error, String.t}
 
   @doc """
-  Read a single event from stream.
+  Retrieves all events from the stream starting (but not including) at `offset`.
 
   `stream` is the stream to read from.
 
-  `event_number` is the number of event to read.
+  Possible `offset` values are `:all` (default value) or an non negative integer
+  indicating starting read position. Event at `offset` is not included in the result.
 
-  The return values are an event term or `{:error, message}` in case of failure.
+  The return values are `{:ok, offset, [events]}` or `{:error, message}` in case of failure.
   """
-
-  @callback fetch(Chronik.stream, non_neg_integer) :: {:ok, non_neg_integer, [EventRecord.t]}
-                                                    | {:error, String.t}
+  @callback fetch(stream :: Chronik.stream,
+                  offset :: non_neg_integer | atom) :: {:ok, non_neg_integer, [EventRecord.t]}
+                                                     | {:error, String.t}
 end
