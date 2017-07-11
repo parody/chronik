@@ -10,6 +10,8 @@ defmodule Chronik.Store.Adapters.ETS do
   @name  __MODULE__
   @table __MODULE__
 
+  require Logger
+
   # API
 
   def child_spec(_store, opts) do
@@ -22,31 +24,33 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def append(stream, events, opts \\ [version: :any]) do
-    {current_events, current_offset} =
+    {current_records, current_offset} =
       case get_stream(stream) do
         :not_found ->
           {[], -1}
-        current_events ->
+        records ->
           # FIXME: Use another data type for storing events instead of List
-          {current_events, current_events |> List.last |> Map.get(:offset)}
+          {records, records |> List.last |> Map.get(:offset)}
       end
-
+    new_records = from_enum(stream, current_offset + 1, events)
+    Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                  "appending events: #{inspect events}."]
     case Keyword.get(opts, :version) do
-      :any ->
-        insert(stream, current_events ++ from_enum(stream, current_offset + 1, events))
       :no_stream when current_offset == -1 ->
-        insert(stream, from_enum(stream, 0, events))
+        insert_records(stream, new_records)
+      :any ->
+        append_records(stream, current_records, new_records)
       version when is_number(version) and current_offset == version ->
-        insert(stream, current_events ++ from_enum(stream, current_offset + 1, events))
+        append_records(stream, current_records, new_records)
       _ ->
         {:error, "wrong expected version"}
     end
   end
 
-  def fetch(stream, offset \\ :all) when is_binary(stream) and (offset >= 0 or offset == :all) do
+  def fetch(stream, offset \\ :all) when offset >= 0 or offset == :all do
     case get_stream(stream) do
       :not_found ->
-        {:error, "stream not found"}
+        {:error, "`#{stream}` stream not found"}
       current_events when offset == :all ->
         {:ok, length(current_events) - 1, Enum.to_list(current_events)}
       current_events ->
@@ -82,10 +86,17 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   # FIXME: might have an unintended effect due to a possible race condition
-  defp insert(stream, events) do
-    true = :ets.insert(@table, {stream, events})
-    last = List.last(events)
-    {:ok, last.offset, events}
+  defp insert_records(stream, records) do
+    true = :ets.insert(@table, {stream, records})
+    last = List.last(records)
+    {:ok, last.offset, records}
+  end
+
+  # FIXME: might have an unintended effect due to a possible race condition
+  defp append_records(stream, current_records, new_records) do
+    true = :ets.insert(@table, {stream, current_records ++ new_records})
+    last = List.last(new_records)
+    {:ok, last.offset, new_records}
   end
 
   defp from_enum(stream, offset, data) do
