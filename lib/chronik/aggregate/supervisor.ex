@@ -8,7 +8,7 @@ defmodule Chronik.Aggregate.Supervisor do
   # API
 
   @doc "Start an aggregate by `id`"
-  @spec start_aggregate(aggregate :: atom, String.t) :: {:ok, pid()} | {:error, term()}
+  @spec start_aggregate(aggregate :: atom, id :: term()) :: {:ok, pid()} | {:error, term()}
   def start_aggregate(aggregate, id) do
     Supervisor.start_child(__MODULE__, [aggregate, id])
   end
