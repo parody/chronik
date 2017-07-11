@@ -10,8 +10,6 @@ defmodule Chronik.Aggregate do
 
       use GenServer
 
-      import Chronik.EventMonad
-
       alias Chronik.{Store, PubSub}
 
       @registry Chronik.AggregateRegistry
@@ -23,18 +21,17 @@ defmodule Chronik.Aggregate do
 
       # API
 
-      def execute(state, fun) do
-        events = state |> fun.() |> List.wrap()
-        new_state = Enum.reduce(events, state, &next_state(&2, &1))
-        {new_state, events}
+      defp apply_events(events, state) do
+        Enum.reduce(events, state, &next_state(&2, &1))
       end
 
-      def fail(message) do
-        {:error, message}
+      def execute({state, events}, fun) do
+        new_events = List.wrap(fun.(state))
+        {apply_events(new_events, state), events ++ new_events}
       end
 
       def call(aggregate_id, function) do
-        case Registry.lookup(@registry, aggregate_id) do
+        case Registry.lookup(@registry, {__MODULE__, aggregate_id}) do
           [] ->
             case Chronik.Aggregate.Supervisor.start_aggregate(__MODULE__, aggregate_id) do
               {:ok, pid} ->
@@ -47,8 +44,12 @@ defmodule Chronik.Aggregate do
         end
       end
 
+      def get_aggregate_id(%__MODULE__{id: id}) do
+        id
+      end
+
       def get(aggregate_id) do
-        GenServer.call(via(aggregate_id), :get)
+        GenServer.call(via({__MODULE__, aggregate_id}), :get)
       end
 
       def start_link(id) do
@@ -64,21 +65,24 @@ defmodule Chronik.Aggregate do
       def handle_call(:get, _from, state) do
         {:reply, state, state}
       end
+
       def handle_call(fun, _from, {aggregate, state} = s) when is_function(fun, 1) do
         try do
-          case fun.(state) do
-            {nil, _} ->
-              {:stop, :normal, {aggregate, nil}}
-            {_state, {:error, _message} = error} ->
-              {:reply, error, s}
-            {new_state, notifications} ->
-              aggregate_id = get_aggregate_id(new_state)
-              {:ok, new_offset, records} = @store.append(aggregate_id, notifications, version: :any)
-              @pubsub.broadcast({aggregate, aggregate_id}, records)
-              {:reply, {:ok, new_offset, records}, {aggregate, new_state}}
+          {new_state, events} = fun.({state, []})
+          aggregate_id = get_aggregate_id(new_state)
+          if state != nil and aggregate_id != get_aggregate_id(state) do
+            raise "The next_state function can not change the aggregate_id"
           end
+          {:ok, new_offset, records} =
+            @store.append(aggregate_id, events, version: :any)
+          @pubsub.broadcast({aggregate, aggregate_id}, records)
+          {:reply, {:ok, new_offset}, {aggregate, new_state}}
         rescue
-          e -> {:reply, {:error, e}, s}
+          e ->
+            case state do
+              nil -> {:stop, :normal, e, s}
+              _state -> {:reply, {:error, e}, s}
+            end
         end
       end
 
@@ -93,10 +97,8 @@ defmodule Chronik.Aggregate do
       # events for the aggregate.
       defp maybe_load_from_store(_aggregate, id) do
         case @store.fetch(id) do
-          {:error, "stream not found"} ->
-            nil
-          events ->
-            Enum.reduce(events, nil, &(next_state(&2, &1.data)))
+          {:error, _} -> nil
+          events -> apply_events(events, nil)
         end
       end
     end
@@ -108,7 +110,7 @@ defmodule Chronik.Aggregate do
 
   # Callbacks
 
-  @callback get_aggregate_id(Chronik.state) :: term()
-  @callback handle_command(Chronik.command) :: :ok | {:error, term()}
+  @callback handle_command(Chronik.command) :: {:ok | non_neg_integer()}
+                                             | {:error, term()}
   @callback next_state(Chronik.state, Chronik.event) :: Chronik.state
 end
