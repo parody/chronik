@@ -8,7 +8,7 @@ defmodule Chronik do
   @type command :: term()
 
   @typedoc "The type of possible streams"
-  @type stream :: String.t
+  @type stream :: term()
 
   @typedoc "This is a boolean predicate that is used for filtering events in the bus"
   @type predicate :: fun((term() -> boolean()))
