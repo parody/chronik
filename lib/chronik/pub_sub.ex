@@ -46,10 +46,19 @@ defmodule Chronik.PubSub do
   @callback start_link(Keyword.t) :: {:ok, pid()} | {:error, String.t}
 
   @doc """
-  Subscribes the caller to the `stream` optionally filtering out
-  events that do not satisfy the `predicate`.
+  Subscribes the caller to the `stream`
 
-  If no `predicate` is given, all events are sent to the caller.
+  Multiple subscriptions to the same `stream` are allowed. The
+  subscriber will receive the events multiple times.
+
+  Returns `:ok` on success or `{:error, message}` in case of failure.
+  """
+  @callback subscribe(stream    :: Chronik.stream) :: Chronik.result_status
+
+
+  @doc """
+  Subscribes the caller to the `stream` filtering out
+  events that do not satisfy the `predicate`.
 
   Multiple subscriptions to the same `stream` are allowed. The
   subscriber will receive the events multiple times.
@@ -58,7 +67,6 @@ defmodule Chronik.PubSub do
   """
   @callback subscribe(stream    :: Chronik.stream,
                       predicate :: Chronik.predicate) :: Chronik.result_status
-
 
   @doc """
   Unsubscribes the caller from the `stream`. No further events should
@@ -70,10 +78,10 @@ defmodule Chronik.PubSub do
   @callback unsubscribe(stream :: Chronik.stream) :: Chronik.result_status
 
   @doc """
-  Broadcasts a list of `events` enumeration to the `stream`
+  Broadcasts a list of `records` enumeration to the `stream`
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
   @callback broadcast(stream :: Chronik.stream,
-                      events :: Chronik.events) :: Chronik.result_status
+                      records :: EventRecord.t) :: Chronik.result_status
 end

@@ -5,22 +5,32 @@ defmodule Chronik.PubSub.Adapters.Registry do
 
   @name __MODULE__
 
+  require Logger
+
   # API
 
-  def subscribe(stream, predicate \\ fn _ -> true end)
-    when is_function(predicate) do
-      {:ok, _} = Registry.register(@name, stream, predicate)
-      :ok
+  def subscribe(stream) do
+    Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                  "process: #{inspect self()} subscribed."]
+    {:ok, _} = Registry.register(@name, stream, fn _ -> true end)
+    :ok
+  end
+
+  def subscribe(stream, predicate) when is_function(predicate) do
+    {:ok, _} = Registry.register(@name, stream, predicate)
+    :ok
   end
 
   def unsubscribe(stream) do
     Registry.unregister(@name, stream)
   end
 
-  def broadcast(stream, events) do
-    for event <- events do
+  def broadcast(stream, records) do
+    Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                  "broadcasting: #{inspect records}"]
+    for record <- records do
       Registry.dispatch(@name, stream,
-        &(for {pid, predicate} <- &1, predicate.(event), do: send(pid, event)))
+        &(for {pid, predicate} <- &1, predicate.(record), do: send(pid, record)))
     end
     :ok
   end
