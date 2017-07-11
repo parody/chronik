@@ -98,9 +98,9 @@ defmodule Chronik.Projection do
         @doc "Fetch and reply events to `projection`"
         @spec fetch_and_reply(streams :: [Chronik.stream], atom, pid) :: Map.t
         def fetch_and_reply(streams, store, projection) do
-          Enum.reduce(streams, %{}, fn {aggregate, stream, _, offset}, acc ->
-            with {:ok, new_offset, events} <- store.fetch(stream, offset) do
-              for event <- events, do: GenServer.cast(projection, {:next_state, event})
+          Enum.reduce(streams, %{}, fn {stream, offset}, acc ->
+            with {:ok, new_offset, recrods} <- store.fetch(stream, offset) do
+              for %EventRecord{data: event} <- recrods, do: GenServer.cast(projection, {:next_state, event})
               Map.put(acc, stream, new_offset)
             else
               {:error, reason} ->
@@ -121,9 +121,10 @@ defmodule Chronik.Projection do
         # GenServer callbacks
 
         def init([store, pubsub, worker, streams]) do
-          _ = Enum.map(streams, fn {aggregate, stream, predicate, offset} ->
-            :ok = pubsub.subscribe({aggregate, stream}, predicate)
-          end)
+          Enum.map(streams,
+            fn {stream, offset} ->
+              :ok = pubsub.subscribe(stream)
+            end)
 
           projection = Process.whereis(worker)
 
@@ -137,28 +138,37 @@ defmodule Chronik.Projection do
           consumer_offset = Map.get(state.cursors, stream, 0)
           new_state =
             cond do
-              offset == consumer_offset ->
+              offset == consumer_offset + 1 ->
+                Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                 "applying event coming from the bus  with offset #{offset}"]
                 :ok = GenServer.cast(state.projection, {:next_state, e.data})
-                %{state | cursors: Map.put(state.cursors, stream, offset + 1)}
+                %{state | cursors: Map.put(state.cursors, stream, offset)}
 
               offset <= consumer_offset ->
+                Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                   "discarding event from the past with offset #{offset}"]
                 state
 
-              offset > consumer_offset ->
-                {:ok, new_offset, events} = store.fetch(stream, offset)
-                for event <- events,
-                  do: :ok = GenServer.cast(projection, {:next_state, event})
+              offset > consumer_offset + 1 ->
+                Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                 "event(s) coming from the future with offset #{offset}. ",
+                 "Fetching missing events starting at offset #{consumer_offset} from the store."]
+                {:ok, new_offset, records} = store.fetch(stream, consumer_offset)
+                for %EventRecord{data: event} <- records,
+                   do: :ok = GenServer.cast(projection, {:next_state, event})
+                Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                 "best effort reading up to offset #{new_offset}"]
                 %{state | cursors: Map.put(state.cursors, stream, new_offset)}
             end
 
-          {:noreply, new_state}
+          {:noreply, state}
         end
       end
     end
   end
 
   # Callbacks
-
+  # TODO: The same type than Aggregate state?
   @callback init() :: Chronik.state
   @callback next_state(Chronik.state, Chronik.event) :: Chronik.state
 end
