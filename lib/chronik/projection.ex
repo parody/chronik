@@ -98,17 +98,18 @@ defmodule Chronik.Projection do
         @doc "Fetch and reply events to `projection`"
         @spec fetch_and_reply(streams :: [Chronik.stream], atom, pid) :: Map.t
         def fetch_and_reply(streams, store, projection) do
-          Enum.reduce(streams, %{}, fn {stream, offset}, acc ->
-            with {:ok, new_offset, records} <- store.fetch(stream, offset) do
-              for %EventRecord{data: event} <- recrods, do: GenServer.cast(projection, {:next_state, event})
-              Map.put(acc, stream, new_offset)
+          Enum.reduce(streams, %{}, fn {aggregate, stream, offset}, acc ->
+            with {:ok, new_offset, records} <- store.fetch({aggregate, stream}, offset) do
+              for %EventRecord{data: event} <- records, do: GenServer.cast(projection, {:next_state, event})
+              Map.put(acc, {aggregate, stream}, new_offset)
             else
               {:error, reason} ->
                 Logger.warn fn ->
-                  ["[#{inspect __MODULE__}<#{inspect stream}>] ",
-                   "starting from offset 0: #{inspect reason}"]
+                  ["[#{inspect __MODULE__}<#{inspect {aggregate, stream}}>] ",
+                   "no events found in the store. ",
+                   "Returning offset=:empty"]
                 end
-                Map.put(acc, stream, 0)
+                Map.put(acc, {aggregate, stream}, :empty)
             end
           end)
         end
@@ -122,8 +123,8 @@ defmodule Chronik.Projection do
 
         def init([store, pubsub, worker, streams]) do
           Enum.map(streams,
-            fn {stream, offset} ->
-              :ok = pubsub.subscribe(stream)
+            fn {aggregate, stream, offset} ->
+              :ok = pubsub.subscribe({aggregate, stream})
             end)
 
           projection = Process.whereis(worker)
@@ -135,9 +136,10 @@ defmodule Chronik.Projection do
 
         def handle_info(%EventRecord{stream: stream, offset: offset} = e,
                         %{store: store, projection: projection} = state) do
-          consumer_offset = Map.get(state.cursors, stream, 0)
+          consumer_offset = Map.get(state.cursors, stream, :empty)
           new_state =
             cond do
+              (consumer_offset == :empty and offset == 0) or
               offset == consumer_offset + 1 ->
                 Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
                  "applying event coming from the bus  with offset #{offset}"]
@@ -146,7 +148,7 @@ defmodule Chronik.Projection do
 
               offset <= consumer_offset ->
                 Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
-                   "discarding event from the past with offset #{offset}"]
+                   "discarding event from the past with offset #{offset}. consumer_offset #{consumer_offset}"]
                 state
 
               offset > consumer_offset + 1 ->
@@ -161,7 +163,7 @@ defmodule Chronik.Projection do
                 %{state | cursors: Map.put(state.cursors, stream, new_offset)}
             end
 
-          {:noreply, state}
+          {:noreply, new_state}
         end
       end
     end
