@@ -17,7 +17,8 @@ defmodule Chronik.PubSub do
 
       def config, do: %{adapter: @adapter, config: @config}
 
-      defdelegate subscribe(stream, predicate \\ fn _ -> true end), to: @adapter
+      defdelegate subscribe(stream), to: @adapter
+      defdelegate subscribe(stream, predicate), to: @adapter
       defdelegate unsubscribe(stream), to: @adapter
       defdelegate broadcast(stream, events), to: @adapter
 
@@ -53,7 +54,7 @@ defmodule Chronik.PubSub do
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback subscribe(stream    :: Chronik.stream) :: Chronik.result_status
+  @callback subscribe(stream :: Chronik.stream) :: Chronik.result_status
 
 
   @doc """
