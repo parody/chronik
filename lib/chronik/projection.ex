@@ -99,7 +99,7 @@ defmodule Chronik.Projection do
         @spec fetch_and_reply(streams :: [Chronik.stream], atom, pid) :: Map.t
         def fetch_and_reply(streams, store, projection) do
           Enum.reduce(streams, %{}, fn {stream, offset}, acc ->
-            with {:ok, new_offset, recrods} <- store.fetch(stream, offset) do
+            with {:ok, new_offset, records} <- store.fetch(stream, offset) do
               for %EventRecord{data: event} <- recrods, do: GenServer.cast(projection, {:next_state, event})
               Map.put(acc, stream, new_offset)
             else
