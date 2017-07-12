@@ -5,21 +5,33 @@ defmodule ExampleTest do
 
   test "Double creating a cart" do
     cart_id = "1"
+
+    # Create a cart.
     assert {:ok, 0} = Cart.handle_command({:create, cart_id})
+
+    # Check that we cannot re-create the cart.
     assert {:error, _} = Cart.handle_command({:create, cart_id})
   end
 
   test "Removing from an empty cart" do
     cart_id = "2"
     item_id = "1"
+
+    # Create the cart.
     Cart.handle_command({:create, cart_id})
+
+    # The remove_items command fails on an empty cart.
     assert {:error, _} = Cart.handle_command({:remove_items, cart_id, item_id, 1})
   end
 
   test "Adding items to a cart" do
     cart_id = "3"
     item_id = "1"
+
+    # Create the cart.
     Cart.handle_command({:create, cart_id})
+
+    # Add an item to the cart.
     assert {:ok, 1} = Cart.handle_command({:add_items, cart_id, item_id, 1})
   end
 
@@ -29,7 +41,7 @@ defmodule ExampleTest do
     # Create cart
     Cart.handle_command({:create, cart_id})
 
-    # Add three items 1 and then remove one item
+    # Add three items 1 and then remove one item.
     Cart.handle_command({:add_items, cart_id, "1", 3})
     Cart.handle_command({:remove_items, cart_id, "1", 1})
 
