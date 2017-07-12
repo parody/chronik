@@ -17,11 +17,15 @@ defmodule Chronik.PubSub.Adapters.Registry do
   end
 
   def subscribe(stream, predicate) when is_function(predicate) do
+    Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                  "process: #{inspect self()} subscribed."]
     {:ok, _} = Registry.register(@name, stream, predicate)
     :ok
   end
 
   def unsubscribe(stream) do
+    Logger.debug ["[#{inspect __MODULE__}<#{inspect stream}>] ",
+                  "process: #{inspect self()} un-subscribed."]
     Registry.unregister(@name, stream)
   end
 

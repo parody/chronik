@@ -51,14 +51,14 @@ defmodule Chronik.Store.Adapters.ETS do
     case get_stream(stream) do
       :not_found ->
         {:error, "`#{inspect stream}` stream not found"}
-      current_events when offset == :all ->
-        {:ok, length(current_events) - 1, Enum.to_list(current_events)}
-      current_events ->
-        events = 
-          current_events
+      current_records when offset == :all ->
+        {:ok, length(current_records) - 1, Enum.to_list(current_records)}
+      current_records ->
+        new_records  = 
+          current_records
           |> Stream.filter(&(&1.offset > offset))
           |> Enum.to_list
-        {:ok, offset + length(events), events}
+        {:ok, offset + length(new_records), new_records}
     end
   end
 
@@ -81,29 +81,27 @@ defmodule Chronik.Store.Adapters.ETS do
   defp get_stream(stream) do
     case :ets.lookup(@table, stream) do
       [] -> :not_found
-      [{^stream, events}] -> events
+      [{^stream, records}] -> records
     end
   end
 
-  # FIXME: might have an unintended effect due to a possible race condition
   defp insert_records(stream, records) do
     true = :ets.insert(@table, {stream, records})
     last = List.last(records)
     {:ok, last.offset, records}
   end
 
-  # FIXME: might have an unintended effect due to a possible race condition
   defp append_records(stream, current_records, new_records) do
     true = :ets.insert(@table, {stream, current_records ++ new_records})
     last = List.last(new_records)
     {:ok, last.offset, new_records}
   end
 
-  defp from_enum(stream, offset, data) do
-    {events, _} = Enum.reduce(data, {[], offset},
-      fn (elem, {events, next_offset}) ->
-        {[EventRecord.create(stream, next_offset, elem) | events], next_offset + 1}
+  defp from_enum(stream, offset, events) do
+    {records, _} = Enum.reduce(events, {[], offset},
+      fn (elem, {records, next_offset}) ->
+        {[EventRecord.create(stream, next_offset, elem) | records], next_offset + 1}
       end)
-    Enum.reverse(events)
+    Enum.reverse(records)
   end
 end

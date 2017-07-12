@@ -169,8 +169,20 @@ defmodule Chronik.Projection do
     end
   end
 
+  @typedoc "The `projection_state` represents the state of an projection."
+  @type projection_state :: term()
+
   # Callbacks
-  # TODO: The same type than Aggregate state?
-  @callback init() :: Chronik.state
-  @callback next_state(Chronik.state, Chronik.event) :: Chronik.state
+  @doc """
+  The `init` function defines the intial state of an aggregate. 
+  """
+  @callback init() :: projection_state
+
+  @doc """
+  The `next_state` function is executed each time an event is received
+  on the bus and is responsible of the projeciton state transition.
+
+  The return value is a new `state` for the received `event`
+  """
+  @callback next_state(state :: projection_state, event :: Chronik.event) :: projection_state
 end

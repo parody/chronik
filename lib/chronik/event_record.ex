@@ -1,6 +1,7 @@
 defmodule Chronik.EventRecord do
   @moduledoc """
-  A structure that represents a domain event
+  A structure that represents a record of a domain event in 
+  the Store or on the PubSub.
   """
 
   defstruct [
@@ -18,7 +19,11 @@ defmodule Chronik.EventRecord do
   }
 
   # API
+  @doc """
+  Helper funciton to create records from domain events. 
 
+  Returns a record.
+  """
   def create(stream, offset, data) do
     %__MODULE__{
       stream: stream,

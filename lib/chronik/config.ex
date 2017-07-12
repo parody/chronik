@@ -2,7 +2,7 @@ defmodule Chronik.Config do
   @moduledoc "Misc utils"
 
   @doc ""
-  @spec fetch_config(atom, Keyword.t) :: {term, atom} | no_return
+  @spec fetch_config(mod :: atom, opts :: Keyword.t) :: {term, atom} | no_return
   def fetch_config(mod, opts) do
     # Stolen from Ecto
     otp_app = Keyword.fetch!(opts, :otp_app)
@@ -17,7 +17,11 @@ defmodule Chronik.Config do
     end
   end
 
-  @doc ""
+  @doc """
+  `Chronik` can be configured to use different adapters for the
+  `Store` and the `PubSub`. This function returns the configuration
+  for the application. They can be changed in the `config/config.ex` file.
+  """
   @spec fetch_adapters() :: {atom, atom} | no_return
   def fetch_adapters do
     config = Application.get_env(:chronik, :adapters)

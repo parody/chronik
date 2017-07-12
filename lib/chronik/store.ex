@@ -1,6 +1,6 @@
 defmodule Chronik.Store do
   @moduledoc """
-  Chronik event store API
+  Chronik event Store API
   """
 
   alias Chronik.Store.EventRecord
@@ -52,34 +52,24 @@ defmodule Chronik.Store do
   `options` is a keyword indicating the optimistic concurrency checks
   to perform at the moment of writing to the stream.
 
-  Currently the `options` keyword allows  `version` key with values:
-
-    - `:any`: append to the end of the stream
-
-    - `:no_stream`: create the stream and append the events. If the
-      stream already exists on the Store `{:error, "wrong expected
-      version"}` is returned.
-
-    - A non negative integer indicating the last seen value.
-
-  The return values are `{:ok, last_inserted_offset}` on success or
-  `{:error, message}` in case of failure.
-
   ## Versioning
 
   Possible values are:
 
-    - `:any`: no checks are performed, the events are always written
+    - `:any`: (defualt value) no checks are performed, the events are always written
 
     - `:no_stream`: verifies that the target stream does not exists
       yet
 
     - any other integer value: the event number expected to currently
       be at
+
+  The return values are `{:ok, last_inserted_offset, records}` on success or
+  `{:error, message}` in case of failure.
   """
   @callback append(stream  :: Chronik.stream,
                    events  :: [Chronik.event],
-                   options :: options) :: {:ok, non_neg_integer} | {:error, String.t}
+                   options :: options) :: {:ok, non_neg_integer, [EventRecord.t]} | {:error, String.t}
 
   @doc """
   Retrieves all events from the stream starting (but not including) at `offset`.
@@ -92,6 +82,6 @@ defmodule Chronik.Store do
   The return values are `{:ok, offset, [events]}` or `{:error, message}` in case of failure.
   """
   @callback fetch(stream :: Chronik.stream,
-                  offset :: non_neg_integer | atom) :: {:ok, non_neg_integer, [EventRecord.t]}
+                  offset :: non_neg_integer | :all) :: {:ok, non_neg_integer, [EventRecord.t]}
                                                      | {:error, String.t}
 end

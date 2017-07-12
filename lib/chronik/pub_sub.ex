@@ -38,24 +38,29 @@ defmodule Chronik.PubSub do
     end
   end
 
+  @typedoc "The result status of all operations on the pub_sub"
+  @type result_status :: :ok | {:error, String.t}
+
   @doc """
-  Initialize the domain event bus
+  Initialize the domain event bus.
 
   Returns `{:ok, pid}` on success or `{:error, message}` in case of
   failure.
   """
-  @callback start_link(Keyword.t) :: {:ok, pid()} | {:error, String.t}
+  @callback start_link(options :: Keyword.t) :: {:ok, pid()} | {:error, String.t}
 
   @doc """
-  Subscribes the caller to the `stream`
+  Subscribes the caller to the `stream`.
 
   Multiple subscriptions to the same `stream` are allowed. The
   subscriber will receive the events multiple times.
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback subscribe(stream :: Chronik.stream) :: Chronik.result_status
+  @callback subscribe(stream :: Chronik.stream) :: Chronik.Pubsub.result_status
 
+  @typedoc "This is a boolean predicate that is used for filtering events in the bus"
+  @type predicate :: fun((term() -> boolean()))
 
   @doc """
   Subscribes the caller to the `stream` filtering out
@@ -67,22 +72,21 @@ defmodule Chronik.PubSub do
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
   @callback subscribe(stream    :: Chronik.stream,
-                      predicate :: Chronik.predicate) :: Chronik.result_status
+                      predicate :: Chronik.predicate) :: Chronik.Pubsub.result_status
 
   @doc """
-  Unsubscribes the caller from the `stream`. No further events should
-  be received from this stream. Note: events from the stream could
+  Unsubscribes the caller from the `stream`. No further events are
+  received from this stream. Note: events from the stream could
   still be on the mailbox.
 
   Returns `:ok` on succes or `{:error, message}` in case of failure.
   """
-  @callback unsubscribe(stream :: Chronik.stream) :: Chronik.result_status
+  @callback unsubscribe(stream :: Chronik.stream) :: Chronik.Pubsub.result_status
 
   @doc """
-  Broadcasts a list of `records` enumeration to the `stream`
+  Broadcasts an enumeration of `records` to all the subscribers.
 
   Returns `:ok` on success or `{:error, message}` in case of failure.
   """
-  @callback broadcast(stream :: Chronik.stream,
-                      records :: EventRecord.t) :: Chronik.result_status
+  @callback broadcast(stream :: Chronik.stream, records :: EventRecord.t) :: Chronik.Pubsub.result_status
 end
