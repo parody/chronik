@@ -74,7 +74,7 @@ defmodule Chronik.Aggregate do
             raise "The next_state function can not change the aggregate_id"
           end
           {:ok, new_offset, records} =
-            @store.append(aggregate_id, events, version: :any)
+            @store.append({aggregate, aggregate_id}, events, version: :any)
           @pubsub.broadcast({aggregate, aggregate_id}, records)
           {:reply, {:ok, new_offset}, {aggregate, new_state}}
         rescue
