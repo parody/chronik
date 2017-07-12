@@ -50,7 +50,7 @@ defmodule Chronik.Store.Adapters.ETS do
   def fetch(stream, offset \\ :all) when offset >= 0 or offset == :all do
     case get_stream(stream) do
       :not_found ->
-        {:error, "`#{stream}` stream not found"}
+        {:error, "`#{inspect stream}` stream not found"}
       current_events when offset == :all ->
         {:ok, length(current_events) - 1, Enum.to_list(current_events)}
       current_events ->
