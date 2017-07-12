@@ -49,7 +49,7 @@ defmodule Chronik.Projection.Test do
     stream = {@aggregate, aggregate_id}
     assert {:ok, offset, _} = @store.append(stream, 
       [%CounterCreated{id: "1", initial_value: 0}], [version: :no_stream])
-    assert {:ok, _} = projection.start_link([{stream, :all}])
+    assert {:ok, _} = projection.start_link([{@aggregate, aggregate_id, :all}])
     assert 0 = projection.state()
     next_offset = offset + 1
     assert {:ok, ^next_offset, records} = @store.append(stream, 
@@ -64,7 +64,7 @@ defmodule Chronik.Projection.Test do
     stream = {@aggregate, aggregate_id}
     assert {:ok, offset, _} = @store.append(stream, 
       [%CounterCreated{id: "1", initial_value: 0}], [version: :no_stream])
-    assert {:ok, _} = projection.start_link([{stream, :all}])
+    assert {:ok, _} = projection.start_link([{@aggregate, aggregate_id, :all}])
     next_offset = offset + 1
     assert {:ok, ^next_offset, [record]} = @store.append(stream, 
      [%CounterIncremented{id: "2", increment: 3}], [version: offset])
@@ -79,7 +79,7 @@ defmodule Chronik.Projection.Test do
     stream = {@aggregate, aggregate_id}
     assert {:ok, _offset, records} = @store.append(stream, 
       [%CounterCreated{id: "1", initial_value: 0}], [version: :no_stream])
-    assert {:ok, _} = projection.start_link([{stream, :all}])
+    assert {:ok, _} = projection.start_link([{@aggregate, aggregate_id, :all}])
     @pubsub.broadcast(stream, records)
     Process.sleep(100)
     assert 0 = projection.state()
