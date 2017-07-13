@@ -122,10 +122,9 @@ defmodule Chronik.Projection do
         # GenServer callbacks
 
         def init([store, pubsub, worker, streams]) do
-          Enum.map(streams,
-            fn {aggregate, stream, offset} ->
-              :ok = pubsub.subscribe({aggregate, stream})
-            end)
+          for {aggregate, stream, offset} <- streams do
+            :ok = pubsub.subscribe({aggregate, stream})
+          end
 
           projection = Process.whereis(worker)
 
