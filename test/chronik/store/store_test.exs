@@ -41,7 +41,7 @@ defmodule Chronik.Store.Test do
     # Fecth all stored records and keep the data field
     data_list =
       stream
-      |> store.fetch
+      |> store.fetch()
       |> elem(2)
       |> Enum.map(&(&1.data))
 
@@ -50,10 +50,10 @@ defmodule Chronik.Store.Test do
 
     # Fetch from the second on
     data_list =
-   	  stream
-   	  |> store.fetch(0)
-   	  |> elem(2)
-   	  |> Enum.map(&(&1.data))
+      stream
+      |> store.fetch(0)
+      |> elem(2)
+      |> Enum.map(&(&1.data))
 
     # Check that the second (included) and all the rests were fetched
     assert (tl events) == data_list

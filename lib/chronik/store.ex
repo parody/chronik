@@ -56,7 +56,7 @@ defmodule Chronik.Store do
 
   Possible values are:
 
-    - `:any`: (defualt value) no checks are performed, the events are always written
+    - `:any`: (default value) no checks are performed, the events are always written
 
     - `:no_stream`: verifies that the target stream does not exists
       yet
