@@ -4,12 +4,21 @@ defmodule Example.Application do
   use Application
 
   alias Example.DomainEvents.CartCreated
+  alias Example.Projection.{CartState, CartsCreated}
+  alias Example.{Store, PubSub}
+
+  @public_topics %{
+    CartCreated => "CartsCreated"
+  }
+
+  @specific_topic {{Example.Cart, "4"}, :all}
 
   def start(_type, _args) do
     children = [
-      {Example.Store, [public_topics: %{CartCreated => "CartCreated"}]},
-      {Example.PubSub, []},
-      {Example.CartState, [{Example.Cart, "4", :all}]}
+      {Store, [public_topics: @public_topics]},
+      {PubSub, []},
+      {CartState, [@specific_topic]},
+      {CartsCreated, [{"CartsCreated", :all}]}
     ]
 
     opts = [strategy: :one_for_one, name: Example.Supervisor]

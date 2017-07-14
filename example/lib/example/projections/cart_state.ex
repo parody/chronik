@@ -1,4 +1,4 @@
-defmodule Example.CartState do
+defmodule Example.Projection.CartState do
   use Chronik.Projection
 
   alias Example.DomainEvents.{CartCreated, ItemsAdded, ItemsRemoved}

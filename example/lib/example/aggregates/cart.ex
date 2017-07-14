@@ -10,11 +10,11 @@ defmodule Example.Cart do
   alias Example.Cart
   alias Example.DomainEvents.{CartCreated, ItemsAdded, ItemsRemoved}
 
-  defmodule CartExists do
+  defmodule CartExistsError do
     defexception [:message]
   end
 
-  defmodule EmptyCart do
+  defmodule CartEmptyError do
     defexception [:message]
   end
 
@@ -23,7 +23,7 @@ defmodule Example.Cart do
   end
 
   def create(_state, _id) do
-    raise CartExists, "Cart already created"
+    raise CartExistsError, "Cart already created"
   end
 
   def remove_items(state, id, item_id, quantity) do
@@ -31,7 +31,7 @@ defmodule Example.Cart do
     cond do
       current_quantity >= quantity ->
         %ItemsRemoved{id: id, item_id: item_id, quantity: quantity}
-      true -> raise EmptyCart, "Cannot remove items from cart #{id}"
+      true -> raise CartEmptyError, "Cannot remove items from cart #{id}"
     end
 
   end
