@@ -51,7 +51,7 @@ defmodule Chronik.Projection.Test do
 
     # We start the projection and start listening on the aggregate stream.
     # In this case an event is already recorded on the Store.
-    assert {:ok, _pid} = projection.start_link([{@aggregate, aggregate_id, :all}])
+    assert {:ok, _pid} = projection.start_link([{stream, :all}])
 
     # The state of the projection should be the initial value.
     assert ^initial_value = projection.state()
@@ -84,7 +84,7 @@ defmodule Chronik.Projection.Test do
     {:ok, _offset, _records} = store.append(stream, [create_event]) 
 
     # Start the projection
-    projection.start_link([{@aggregate, aggregate_id, :all}])
+    projection.start_link([{stream, :all}])
 
     # Store a increment domain event
     {:ok, _next_offset, [record]} = store.append(stream, [increment_event])
@@ -118,7 +118,7 @@ defmodule Chronik.Projection.Test do
 
     # Start the projeciton. The consumer will find the create event already
     # on the store.
-    projection.start_link([{@aggregate, aggregate_id, :all}])
+    projection.start_link([{stream, :all}])
 
     wait()
 
