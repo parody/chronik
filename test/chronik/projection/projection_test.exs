@@ -1,5 +1,5 @@
 defmodule Chronik.Projection.Test do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   @aggregate TestAggregate
   @projection Chronik.Projection.Test.KeepCount
@@ -28,7 +28,7 @@ defmodule Chronik.Projection.Test do
 
   setup_all do
     {store, pub_sub} = Chronik.Config.fetch_adapters()
-    {:ok, _pid} = store.start_link([])
+    {:ok, _pid} = store.start_link([store, []])
     {:ok, _pid} = pub_sub.start_link([keys: :duplicate, name: pub_sub])
     {:ok, %{projection: @projection, store: store, pub_sub: pub_sub}}
   end
