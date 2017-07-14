@@ -2,11 +2,12 @@ defmodule Chronik.Aggregate.Test do
   use ExUnit.Case
 
   @aggregate Chronik.Aggregate.Test.Counter
-  @store Chronik.Store.Adapters.ETS
-  @pubsub Chronik.PubSub.Adapters.Registry
+  # Counter is a test aggregate. It has only two commands
+  # :create and :increment.
 
   defmodule Counter do
 
+    # The aggregate state is just the counter value.
     defstruct [
       :id,
       :counter
@@ -15,34 +16,19 @@ defmodule Chronik.Aggregate.Test do
     use Chronik.Aggregate
 
     alias Chronik.Aggregate.Test.{Counter}
-
-    defmodule DomainEvents do
-      defmodule CounterCreated do
-        defstruct [
-          :id,
-          :initial_value
-        ]
-      end
-
-      defmodule CounterIncremented do
-        defstruct [
-          :id,
-          :increment
-        ]
-      end
-    end
-
     alias DomainEvents.{CounterCreated, CounterIncremented}
 
+    # From a nil state we can create a counter.
     def create(nil, id) do
-
       %CounterCreated{id: id, initial_value: 0}  
     end
 
+    # If we try to create a counter from a non-nil state we raise an error.
     def create(_state, _id) do
       raise "Already created counter"
     end
 
+    # The increment command is valid on every non-nil state
     def increment(%Counter{}, id, increment) do
       %CounterIncremented{id: id, increment: increment}  
     end
@@ -82,30 +68,44 @@ defmodule Chronik.Aggregate.Test do
   end
 
   setup_all do
-    {:ok, _} = @store.start_link([])
-    {:ok, _} = @pubsub.start_link([keys: :duplicate, name: @pubsub])
+    {store, pub_sub} = Chronik.Config.fetch_adapters()
+    {:ok, _} = store.start_link([])
+    {:ok, _} = pub_sub.start_link([keys: :duplicate, name: pub_sub])
     {:ok, %{aggregate: @aggregate}}
   end
 
-  test "Double creating an aggregate with meaniful error message", %{aggregate: aggregate} do
-    id = "1"
+  test "Double creating an aggregate", %{aggregate: aggregate} do
+    id         = "1"
     new_offset = 0
+
+    # Check that we can creante an aggregate.
     assert {:ok, ^new_offset} = aggregate.handle_command({:create, id})
+
+    # Re-creating should return an error.
     assert {:error, _} = aggregate.handle_command({:create, id})
   end
 
   test "Transition to next state", %{aggregate: aggregate} do
-    id = "2"
+    id        = "2"
     increment = 3
+
     aggregate.handle_command({:create, id})
+
+    # We can handle the increment command correctly.
     assert {:ok, 1} = aggregate.handle_command({:increment, id, increment})
+
+    # The resulting state is 3.
     assert {^aggregate, %{counter: ^increment}} = aggregate.get(id)
   end
 
   test "Multiple (using pipe operator) transition", %{aggregate: aggregate} do
-    id = "3"
+    id        = "3"
     increment = 3
-    assert {:ok, 1} = aggregate.handle_command({:create_and_increment, id, increment})
+
+    # This is a composed command to test the |> operator on executes
+    aggregate.handle_command({:create_and_increment, id, increment})
+
+    # If everything went fine we created and incremented in 3 the new aggregate.
     assert {^aggregate, %{counter: ^increment}} = aggregate.get(id)
   end
 

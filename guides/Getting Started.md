@@ -1,0 +1,1 @@
+A lightweight event sourcing micro framework for Elixir.

@@ -1,6 +1,6 @@
 # Chronik
 
-**TODO: Add description**
+A lightweight event sourcing micro framework for Elixir.
 
 ## Installation
 
