@@ -3,9 +3,11 @@ defmodule Example.Application do
 
   use Application
 
+  alias Example.DomainEvents.CartCreated
+
   def start(_type, _args) do
     children = [
-      {Example.Store, []},
+      {Example.Store, [public_topics: %{CartCreated => "CartCreated"}]},
       {Example.PubSub, []},
       {Example.CartState, [{Example.Cart, "4", :all}]}
     ]
