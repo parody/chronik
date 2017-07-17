@@ -1,9 +1,10 @@
 defmodule Chronik.Store.Test do
   use ExUnit.Case, async: false
 
+
   setup_all do
     {store, _pub_sub} = Chronik.Config.fetch_adapters()
-    store.init(nil)
+    store.start_link([store, []])
     {:ok, %{store: store}}
   end
 
@@ -60,7 +61,7 @@ defmodule Chronik.Store.Test do
   end
 
   test "singleton domain event store", %{store: store} do
-    {error, _} = store.init(nil)
+    {error, _} = store.init([store, []])
     assert error != :ok
   end
 end

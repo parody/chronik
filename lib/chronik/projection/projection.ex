@@ -98,18 +98,18 @@ defmodule Chronik.Projection do
         @doc "Fetch and reply events to `projection`"
         @spec fetch_and_reply(streams :: [Chronik.stream], atom, pid) :: Map.t
         def fetch_and_reply(streams, store, projection) do
-          Enum.reduce(streams, %{}, fn {aggregate, stream, offset}, acc ->
-            with {:ok, new_offset, records} <- store.fetch({aggregate, stream}, offset) do
+          Enum.reduce(streams, %{}, fn {stream, offset}, acc ->
+            with {:ok, new_offset, records} <- store.fetch(stream, offset) do
               for %EventRecord{data: event} <- records, do: GenServer.cast(projection, {:next_state, event})
-              Map.put(acc, {aggregate, stream}, new_offset)
+              Map.put(acc, stream, new_offset)
             else
               {:error, reason} ->
                 Logger.warn fn ->
-                  ["[#{inspect __MODULE__}<#{inspect {aggregate, stream}}>] ",
+                  ["[#{inspect __MODULE__}<#{inspect stream}>] ",
                    "no events found in the store. ",
                    "Returning offset=:empty"]
                 end
-                Map.put(acc, {aggregate, stream}, :empty)
+                Map.put(acc, stream, :empty)
             end
           end)
         end
@@ -122,8 +122,8 @@ defmodule Chronik.Projection do
         # GenServer callbacks
 
         def init([store, pubsub, worker, streams]) do
-          for {aggregate, stream, offset} <- streams do
-            :ok = pubsub.subscribe({aggregate, stream})
+          for {stream, offset} <- streams do
+            :ok = pubsub.subscribe(stream)
           end
 
           projection = Process.whereis(worker)
@@ -173,7 +173,7 @@ defmodule Chronik.Projection do
 
   # Callbacks
   @doc """
-  The `init` function defines the intial state of an aggregate. 
+  The `init` function defines the intial state of an projection.
   """
   @callback init() :: projection_state
 

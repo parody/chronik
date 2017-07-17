@@ -1,5 +1,5 @@
 defmodule Chronik.Aggregate.Test do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   @aggregate Chronik.Aggregate.Test.Counter
   # Counter is a test aggregate. It has only two commands
@@ -69,7 +69,7 @@ defmodule Chronik.Aggregate.Test do
 
   setup_all do
     {store, pub_sub} = Chronik.Config.fetch_adapters()
-    {:ok, _} = store.start_link([])
+    {:ok, _} = store.start_link([store, []])
     {:ok, _} = pub_sub.start_link([keys: :duplicate, name: pub_sub])
     {:ok, %{aggregate: @aggregate}}
   end

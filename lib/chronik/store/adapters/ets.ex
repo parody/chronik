@@ -17,13 +17,14 @@ defmodule Chronik.Store.Adapters.ETS do
   def child_spec(_store, opts) do
     %{
       id: __MODULE__,
-      start: {__MODULE__, :start_link, [opts]},
+      start: {__MODULE__, :start_link, opts},
       type: :worker,
       restart: :permanent
     }
   end
 
-  def append(stream, events, opts \\ [version: :any]) do
+
+  defp do_append(stream, events, opts  \\ [version: :any]) do
     {current_records, current_offset} =
       case get_stream(stream) do
         :not_found ->
@@ -47,30 +48,72 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
-  def fetch(stream, offset \\ :all) when offset >= 0 or offset == :all do
-    case get_stream(stream) do
-      :not_found ->
-        {:error, "`#{inspect stream}` stream not found"}
-      current_records when offset == :all ->
-        {:ok, length(current_records) - 1, Enum.to_list(current_records)}
-      current_records ->
-        new_records  = 
-          current_records
-          |> Stream.filter(&(&1.offset > offset))
-          |> Enum.to_list
-        {:ok, offset + length(new_records), new_records}
-    end
+  def append(stream, events, opts \\ [version: :any]) do
+    GenServer.call(@name, {:append, stream, events, opts})
   end
 
+  def fetch(stream, offset \\ :all) when offset >= 0 or offset == :all do
+    GenServer.call(@name, {:fetch, stream, offset})
+  end
+
+  def handle_call({:fetch, stream, offset}, _from, public_topics) do
+    result =
+      case get_stream(stream) do
+        :not_found ->
+          {:error, "`#{inspect stream}` stream not found"}
+        current_records when offset == :all ->
+          {:ok, length(current_records) - 1, Enum.to_list(current_records)}
+        current_records ->
+          new_records  =
+            current_records
+            |> Stream.filter(&(&1.offset > offset))
+            |> Enum.to_list
+          {:ok, offset + length(new_records), new_records}
+      end
+    {:reply, result, public_topics}
+  end
+
+  def handle_call({:append, stream, events, opts}, _from, public_topics) do
+    # First write the public events
+    public_records =
+      if map_size(public_topics) > 0 do
+        # If there are public topics
+        # Check every event to see if it should be published
+        # on those topics
+        Enum.reduce(events, [],
+          fn (event, records) ->
+            event_type = event.__struct__
+            case Map.fetch(public_topics, event_type) do
+              {:ok, topic} ->
+                {:ok, _, new_records} = do_append(topic, [event])
+                new_records ++ records
+              _ -> records
+            end
+          end)
+      else
+        # No public topics
+        []
+      end
+    # Then write the events on the aggregate stream
+    reply =
+      case do_append(stream, events, opts) do
+        {:ok, offset, aggregate_records} ->
+          {:ok, offset, public_records ++ aggregate_records}
+
+        error -> error
+      end
+    {:reply, reply, public_topics}
+  end
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, [opts], name: @name)
+    GenServer.start_link(__MODULE__, opts, name: @name)
   end
 
   # GenServer callbacks
 
-  def init(_args) do
+  def init([_store, opts]) do
     try do
-      {:ok, :ets.new(@table, [:set, :named_table, :public])}
+      :ets.new(@table, [:set, :named_table, :public])
+      {:ok, Keyword.get(opts, :public_topics, %{})}
     rescue
       _ -> {:stop, {:error, "event store already started"}}
     end

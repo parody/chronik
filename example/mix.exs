@@ -31,7 +31,10 @@ defmodule Example.Mixfile do
   defp deps do
     [
       {:dialyxir, "> 0.0.0", only: :dev},
-      {:chronik, path: "../"}
+      {:chronik, path: "../"},
+
+      {:excoveralls, "> 0.0.0", only: :test},
+      {:credo, "> 0.0.0", only: :dev}
     ]
   end
 end

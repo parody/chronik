@@ -75,7 +75,13 @@ defmodule Chronik.Aggregate do
           end
           {:ok, new_offset, records} =
             @store.append({aggregate, aggregate_id}, events, version: :any)
-          @pubsub.broadcast({aggregate, aggregate_id}, records)
+
+          records
+          |> Enum.group_by(&(&1.stream))
+          |> Enum.map(fn {stream, records} ->
+            @pubsub.broadcast(stream, records)
+          end)
+
           {:reply, {:ok, new_offset}, {aggregate, new_state}}
         rescue
           e ->
