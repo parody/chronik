@@ -14,22 +14,13 @@ defmodule CommandMacro do
   end`
   """
   defmacro command(tuple) do
-    cmd = 
-      case tuple_size(tuple) do
-        2 -> elem(tuple, 0)
-        _ -> tuple |> elem(2) |> hd
-      end
-
-    id_arg = 
-      case tuple_size(tuple) do
-        2 -> elem(tuple, 1)
-        _ -> tuple |> elem(2) |> tl |> hd
-      end
-
-    args = 
-      case tuple_size(tuple) do
-        2 -> [elem(tuple, 1)]
-        _ -> tuple |> elem(2) |> tl
+    {cmd, id_arg, args} =
+      case tuple do
+        {cmd, id} -> {cmd, id, [id]}
+        tuple ->
+          args = elem(tuple,2)
+          [cmd, id | rest] = args
+          {cmd, id , [id | rest]}
       end
 
     quote do
