@@ -81,7 +81,7 @@ defmodule Chronik.Aggregate.Test do
     assert :ok = aggregate.handle_command({:create, id})
 
     # Re-creating should return an error.
-    # assert {:error, _} = aggregate.handle_command({:create, id})
+    assert {:error, _} = aggregate.handle_command({:create, id})
   end
 
   test "Transition to next state", %{aggregate: aggregate} do
