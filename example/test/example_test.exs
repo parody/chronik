@@ -7,7 +7,7 @@ defmodule ExampleTest do
     cart_id = "1"
 
     # Create a cart.
-    assert {:ok, 0} = Cart.handle_command({:create, cart_id})
+    assert :ok = Cart.handle_command({:create, cart_id})
 
     # Check that we cannot re-create the cart.
     assert {:error, _} = Cart.handle_command({:create, cart_id})
@@ -32,7 +32,7 @@ defmodule ExampleTest do
     Cart.handle_command({:create, cart_id})
 
     # Add an item to the cart.
-    assert {:ok, 1} = Cart.handle_command({:add_items, cart_id, item_id, 1})
+    assert :ok = Cart.handle_command({:add_items, cart_id, item_id, 1})
   end
 
   test "Adding and removing items to a cart. Using a projection" do

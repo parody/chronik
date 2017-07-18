@@ -7,6 +7,8 @@ defmodule Example.Cart do
 
   use Chronik.Aggregate
 
+  import CommandMacro
+
   alias Example.Cart
   alias Example.DomainEvents.{CartCreated, ItemsAdded, ItemsRemoved}
 
@@ -18,14 +20,20 @@ defmodule Example.Cart do
     defexception [:message]
   end
 
+  command {:create, id}
   def create(nil, id) do
     %CartCreated{id: id}
   end
-
   def create(_state, _id) do
     raise CartExistsError, "Cart already created"
   end
 
+  command {:add_items, id, item_id, quantity}
+  def add_items(_state, id, item_id, quantity) do
+    %ItemsAdded{id: id, item_id: item_id, quantity: quantity}
+  end
+
+  command {:remove_items, id, item_id, quantity}
   def remove_items(state, id, item_id, quantity) do
     current_quantity = (state.items[item_id] || 0)
     cond do
@@ -34,31 +42,6 @@ defmodule Example.Cart do
       true -> raise CartEmptyError, "Cannot remove items from cart #{id}"
     end
 
-  end
-
-  def add_items(_state, id, item_id, quantity) do
-    %ItemsAdded{id: id, item_id: item_id, quantity: quantity}
-  end
-
-  def handle_command({:create, id}) do
-    Cart.call(id,
-    fn state ->
-      execute(state, &Cart.create(&1, id))
-    end)
-  end
-
-  def handle_command({:add_items, id, item_id, quantity}) do
-    Cart.call(id,
-    fn state ->
-      execute(state, &Cart.add_items(&1, id, item_id, quantity))
-    end)
-  end
-
-  def handle_command({:remove_items, id, item_id, quantity}) do
-    Cart.call(id,
-    fn state ->
-      execute(state, &Cart.remove_items(&1, id, item_id, quantity))
-    end)
   end
 
   def next_state(nil, %CartCreated{id: id}) do

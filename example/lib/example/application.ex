@@ -15,7 +15,7 @@ defmodule Example.Application do
 
   def start(_type, _args) do
     children = [
-      {Store, [public_topics: @public_topics]},
+      {Store, [public_topics: @public_topics, record_version: "2"]},
       {PubSub, []},
       {CartState, [@specific_topic]},
       {CartsCreated, [{"CartsCreated", :all}]}

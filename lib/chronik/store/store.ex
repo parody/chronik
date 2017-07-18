@@ -30,7 +30,7 @@ defmodule Chronik.Store do
       def config, do: %{adapter: @adapter, config: @config}
 
       defdelegate append(stream, events, opts \\ [version: :any]), to: @adapter
-      defdelegate fetch(stream, offset \\ 0), to: @adapter
+      defdelegate fetch(stream, offset \\ :all), to: @adapter
 
       def child_spec(opts) do
         %{

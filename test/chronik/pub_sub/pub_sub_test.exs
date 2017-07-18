@@ -54,7 +54,7 @@ defmodule Chronik.PubSub.Test do
     
     # Check that we can unsubscribe from the stream
     assert_ok pub_sub.unsubscribe(stream)
-    
+
     # :event2 is broadcasted while we are unsubscried from the stream
     pub_sub.broadcast(stream,  [:event2])
 
@@ -76,9 +76,11 @@ defmodule Chronik.PubSub.Test do
   test "multiple subscriptions", %{pub_sub: pub_sub} do
     stream4 = "test_stream4"
     stream5 = "test_stream5"
-    events4 = [EventRecord.create(stream4, 0, :event1),
-               EventRecord.create(stream4, 1, :event2)]
-    events5 = [EventRecord.create(stream5, 0, :event3)]
+    record_version = "1"
+
+    events4 = [EventRecord.create(stream4, 0, :event1, record_version),
+               EventRecord.create(stream4, 1, :event2, record_version)]
+    events5 = [EventRecord.create(stream5, 0, :event3, record_version)]
 
     # Subscribe to two different streams.
     pub_sub.subscribe(stream4)

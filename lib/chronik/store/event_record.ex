@@ -8,7 +8,8 @@ defmodule Chronik.EventRecord do
     :stream,        # The stream that this event record belongs to
     :offset,        # The position of the event record in the stream
     :created_at,    # Creation timestamp
-    :data           # Data of the event record
+    :data,          # Data of the event record
+    :version        # Version of the event record
   ]
 
   @type t :: %__MODULE__{
@@ -24,12 +25,13 @@ defmodule Chronik.EventRecord do
 
   Returns a record.
   """
-  def create(stream, offset, data) do
+  def create(stream, offset, data, version) do
     %__MODULE__{
       stream: stream,
       offset: offset,
       created_at: System.system_time(),
-      data: data
+      data: data,
+      version: version
     }
   end
 end

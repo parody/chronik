@@ -20,7 +20,7 @@ defmodule Chronik.Aggregate.Test do
 
     # From a nil state we can create a counter.
     def create(nil, id) do
-      %CounterCreated{id: id, initial_value: 0}  
+      %CounterCreated{id: id, initial_value: 0}
     end
 
     # If we try to create a counter from a non-nil state we raise an error.
@@ -30,7 +30,7 @@ defmodule Chronik.Aggregate.Test do
 
     # The increment command is valid on every non-nil state
     def increment(%Counter{}, id, increment) do
-      %CounterIncremented{id: id, increment: increment}  
+      %CounterIncremented{id: id, increment: increment}
     end
 
     def next_state(nil, %CounterCreated{id: id, initial_value: value}) do
@@ -76,10 +76,9 @@ defmodule Chronik.Aggregate.Test do
 
   test "Double creating an aggregate", %{aggregate: aggregate} do
     id         = "1"
-    new_offset = 0
 
     # Check that we can creante an aggregate.
-    assert {:ok, ^new_offset} = aggregate.handle_command({:create, id})
+    assert :ok = aggregate.handle_command({:create, id})
 
     # Re-creating should return an error.
     assert {:error, _} = aggregate.handle_command({:create, id})
@@ -92,7 +91,7 @@ defmodule Chronik.Aggregate.Test do
     aggregate.handle_command({:create, id})
 
     # We can handle the increment command correctly.
-    assert {:ok, 1} = aggregate.handle_command({:increment, id, increment})
+    assert :ok = aggregate.handle_command({:increment, id, increment})
 
     # The resulting state is 3.
     assert {^aggregate, %{counter: ^increment}} = aggregate.get(id)
@@ -107,6 +106,13 @@ defmodule Chronik.Aggregate.Test do
 
     # If everything went fine we created and incremented in 3 the new aggregate.
     assert {^aggregate, %{counter: ^increment}} = aggregate.get(id)
+  end
+
+  test "Command on unexistent aggregate", %{aggregate: aggregate} do
+    id        = "4"
+    increment = 3
+
+    assert {:error, _} = aggregate.handle_command({:increment, id, increment})
   end
 
 end
