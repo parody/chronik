@@ -82,11 +82,11 @@ defmodule Chronik.Aggregate do
             @pubsub.broadcast(stream, records)
           end)
 
-          {:reply, {:ok, new_offset}, {aggregate, new_state}}
+          {:reply, :ok, {aggregate, new_state}}
         rescue
           e ->
             case state do
-              nil -> {:stop, :normal, e, s}
+              nil -> {:stop, :normal, {:error, e}, s}
               _state -> {:reply, {:error, e}, s}
             end
         end
