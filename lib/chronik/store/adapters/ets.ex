@@ -57,8 +57,6 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def handle_call({:fetch, stream, offset}, _from, state) do
-    public_topics = Keyword.fetch!(state, :public_topics)
-    record_version = Keyword.fetch!(state, :record_version)
     result =
       case get_stream(stream) do
         :not_found ->
