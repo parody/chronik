@@ -3,8 +3,13 @@ defmodule Chronik.Projection.Test do
 
   @aggregate TestAggregate
   @projection Chronik.Projection.Test.KeepCount
-  
+  @projection_dump Chronik.Projection.Test.Dump
+
   alias DomainEvents.{CounterCreated, CounterIncremented}
+
+  defmodule Dump do
+    use Chronik.Projection.DumpToFile, filename: "./dump.log"
+  end
 
   # This is a test projection. It receives domain events and keeps a
   # counter updated.
@@ -52,6 +57,9 @@ defmodule Chronik.Projection.Test do
     # We start the projection and start listening on the aggregate stream.
     # In this case an event is already recorded on the Store.
     assert {:ok, _pid} = projection.start_link([{stream, :all}])
+    
+    # Also start a projection that writes events to a file "dump.log"
+    assert {:ok, _pid} = @projection_dump.start_link([{stream, :all}])
 
     # The state of the projection should be the initial value.
     assert ^initial_value = projection.state()
