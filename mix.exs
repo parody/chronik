@@ -47,17 +47,15 @@ defmodule Chronik.Mixfile do
       maintainers: ["Cristian Rosa", "Federico Bergero", "Ricardo Lanziano"],
       licenses: [],
       links: %{"GitHub" => "https://github.com/parody/chronik"},
-      files: ~w(mix.exs README.md CHANGELOG.md lib priv config) ++
+      files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++
              ~w()
     ]
   end
 
   defp deps do
     [
-      # Documentation
-      {:ex_doc, "> 0.0.0", only: :docs},
-
       # Development
+      {:ex_doc, "> 0.0.0", only: :dev},
       {:dialyxir, "> 0.0.0", only: :dev},
       {:excoveralls, "> 0.0.0", only: :test},
       {:credo, "> 0.0.0", only: :dev},
