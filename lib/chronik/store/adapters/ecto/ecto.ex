@@ -16,15 +16,15 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   import Ecto.Query
 
-  alias Chronik.Store.Adapters.Ecto.Repo
   alias Chronik.Store.Adapters.Ecto.Aggregate
   alias Chronik.Store.Adapters.Ecto.DomainEvents
   alias Chronik.EventRecord
 
   require Logger
 
-  @name  __MODULE__
+  @name __MODULE__
   @epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
+  @repo Application.get_env(:chronik, __MODULE__)[:store]
 
   @doc false
   def child_spec(_store, opts) do
@@ -43,8 +43,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   @doc false
   def init(_opts) do
-    {:ok, _pid} = Repo.start_link([])
-    {:ok, nil}
+    @repo.start_link([])
   end
 
   def append(aggregate, events, opts \\ [version: :any]) do
@@ -115,7 +114,7 @@ defmodule Chronik.Store.Adapters.Ecto do
                       created: e.created
                     }
 
-    case Repo.all(query) do
+    case @repo.all(query) do
       [] -> {:reply, {:ok, aggregate_version(aggregate), []}, state}
       rows -> {:reply, build_records(aggregate, rows), state}
     end
@@ -141,7 +140,7 @@ defmodule Chronik.Store.Adapters.Ecto do
                       created: e.created
                     }
 
-    case Repo.all(query) do
+    case @repo.all(query) do
       [] -> {:reply, {:ok, store_version(), []}, state}
       rows -> {:reply, build_records(rows), state}
     end
@@ -153,7 +152,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     Aggregate
     |> where(aggregate: ^aggregate)
     |> where(aggregate_id: ^id)
-    |> Repo.update_all(
+    |> @repo.update_all(
       set: [snapshot_version: Integer.to_string(version),
             snapshot: :erlang.term_to_binary(aggregate_state)])
 
@@ -166,7 +165,7 @@ defmodule Chronik.Store.Adapters.Ecto do
       where: a.aggregate_id == ^id,
       where: not is_nil(a.snapshot_version)
 
-    case Repo.one(query) do
+    case @repo.one(query) do
       nil -> {:reply, nil, state}
       %Aggregate{snapshot_version: version, snapshot: snapshot} ->
         {:reply, {version, :erlang.binary_to_term(snapshot)}, state}
@@ -203,15 +202,15 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp aggregate_table_id(aggregate) do
     aggregate
-    |> Repo.get_aggregate()
+    |> @repo.get_aggregate()
     |> Aggregate.changeset()
-    |> Repo.insert_or_update!()
+    |> @repo.insert_or_update!()
     |> Map.get(:id)
   end
 
   defp do_append(aggregate, events) do
     {records, _version, aggregate_version} = from_enum(events, aggregate)
-    Repo.insert_all(DomainEvents,
+    @repo.insert_all(DomainEvents,
       Enum.map(records, &insert_event(&1, aggregate_table_id(aggregate))))
     {:ok, aggregate_version, records}
   end
@@ -242,7 +241,7 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   defp store_version do
-    case Repo.aggregate((from e in DomainEvents), :count, :id) do
+    case @repo.aggregate((from e in DomainEvents), :count, :id) do
       0 -> :empty
       count -> count - 1
     end
@@ -256,7 +255,7 @@ defmodule Chronik.Store.Adapters.Ecto do
         where: a.aggregate == ^aggregate_module,
         where: a.aggregate_id == ^aggregate_id
 
-    case Repo.aggregate(query, :count, :id) do
+    case @repo.aggregate(query, :count, :id) do
       0 -> :empty
       count -> count - 1
     end
