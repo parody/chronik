@@ -2,6 +2,9 @@ defmodule Chronik.Store.Adapters.Ecto do
   @moduledoc """
   This is a Ecto adapter for the Store.
 
+  The Ecto backend can be configured through environment variables
+  which are resolved by Confex.
+
   The adapter uses two tables:
   * `tabAggregates` which stores the last snapshot (if any) for a given
   `aggregate_module` and `id`.
