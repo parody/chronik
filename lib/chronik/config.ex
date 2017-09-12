@@ -1,8 +1,8 @@
 defmodule Chronik.Config do
   @moduledoc "Misc utils"
 
-  @doc "`fetch_config` returns the configuration for a given module."
-  @spec fetch_config(mod :: atom(), opts :: Keyword.t)
+  @doc "`fetch_config` returns the adapters configuration for a given module."
+  @spec fetch_config(mod :: module(), opts :: Keyword.t)
     :: {term(), atom()} | no_return()
   def fetch_config(mod, opts) do
     # Stolen from Ecto
@@ -18,6 +18,16 @@ defmodule Chronik.Config do
     end
   end
 
+  @doc "`get_config` a specific configuration for a given module"
+  @spec get_config(mod :: module(), key :: atom) :: term()
+  def get_config(module, key) do
+    mod_conf = Application.get_env(:chronik, module, %{})
+
+    unless Keyword.has_key?(mod_conf, key),
+      do: raise Chronik.MissingConfigError.exception(module, key)
+
+    Keyword.fetch!(mod_conf, key)
+  end
   @doc """
   `Chronik` can be configured to use different adapters for the
   `Store` and the `PubSub`. This function returns the configuration

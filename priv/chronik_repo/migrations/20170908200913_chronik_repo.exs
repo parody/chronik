@@ -1,4 +1,4 @@
-defmodule Chronik.Store.Adapters.Ecto.Repo.Migrations.CreateTables do
+defmodule Chronik.Repo.Migrations.CreateTables do
   use Ecto.Migration
 
   def up do

@@ -20,3 +20,13 @@ defmodule Chronik.AdapterLoadError do
     %__MODULE__{message: msg}
   end
 end
+
+defmodule Chronik.MissingConfigError do
+  @moduledoc false
+  defexception [:message]
+
+  def exception(module, key) do
+    msg = "error missing configuration #{inspect key} for module #{module}"
+    %__MODULE__{message: msg}
+  end
+end

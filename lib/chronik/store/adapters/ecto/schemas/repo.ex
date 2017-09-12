@@ -1,7 +1,16 @@
-defmodule Chronik.Store.Adapters.Ecto.Repo do
+defmodule Chronik.Store.Adapters.Ecto.ChronikRepo do
   @moduledoc false
 
   use Ecto.Repo, otp_app: :chronik
+
+  def init(_type, config) do
+    {:ok, config} = Confex.Resolver.resolve(config)
+
+    unless config[:url] do
+      raise "Set url config for #{__MODULE__}!"
+    end
+    {:ok, config}
+  end
 
   def child_spec(opts) do
     %{
@@ -9,14 +18,5 @@ defmodule Chronik.Store.Adapters.Ecto.Repo do
       start: {__MODULE__, :start_link, [opts]},
       type: :supervisor
       }
-  end
-
-  def get_aggregate({aggregate, id}) do
-    alias Chronik.Store.Adapters.Ecto.Aggregate
-
-    case get_by(Aggregate, aggregate: aggregate, aggregate_id: id) do
-      nil  -> %Aggregate{aggregate: aggregate, aggregate_id: id}
-      a -> a
-    end
   end
 end
