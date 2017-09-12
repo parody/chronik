@@ -1,5 +1,6 @@
 defmodule Chronik.Aggregate.Test do
   use ExUnit.Case, async: false
+  require Logger
 
   @aggregate Chronik.Aggregate.Test.Counter
   @increment 3

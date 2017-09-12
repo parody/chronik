@@ -23,7 +23,7 @@ defmodule Chronik.Aggregate.Supervisor do
 
   @doc false
   def init(_opts) do
-    child = worker(Chronik.Aggregate, [], restart: :transient)
+    child = worker(Chronik.Aggregate.Core, [], restart: :transient)
     supervise([child], strategy: :simple_one_for_one)
   end
 end
