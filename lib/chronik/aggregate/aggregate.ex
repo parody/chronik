@@ -313,7 +313,14 @@ defmodule Chronik.Aggregate do
   defp update_timer(timer, module) do
     shutdown_timeout = get_shutdown_timeout(module)
 
-    if timer, do: Process.cancel_timer(timer)
+    if timer do
+      Process.cancel_timer(timer)
+      receive do
+        :shutdown -> :ok
+      after
+        0 -> :ok
+      end
+    end
 
     if shutdown_timeout != :infinity,
       do: Process.send_after(self(), :shutdown, shutdown_timeout)
