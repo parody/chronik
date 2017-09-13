@@ -11,7 +11,9 @@ defmodule Chronik.PubSub do
     quote bind_quoted: [opts: opts] do
       @behaviour Chronik.PubSub
 
-      {_cfg, adapter} = Chronik.Config.fetch_config(__MODULE__, opts)
+      alias Chronik.Config
+
+      {_cfg, adapter} = Config.fetch_config(__MODULE__, opts)
 
       @adapter adapter
 

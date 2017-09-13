@@ -8,13 +8,14 @@ defmodule Chronik.Projection.DumpToFile do
   defmacro __using__([filename: filename]) do
     quote do
       use Chronik.Projection
+      alias Chronik.EventRecord
 
       def init(_opts) do
         File.rm(unquote(filename))
         {unquote(filename), []}
       end
 
-      def next_state(filename, event) do
+      def handle_event(%EventRecord{domain_event: event}, filename) do
         File.write(filename, "[#{__MODULE__}] #{inspect event}\n", [:append])
         filename
       end

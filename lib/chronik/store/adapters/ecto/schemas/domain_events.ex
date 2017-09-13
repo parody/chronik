@@ -9,5 +9,6 @@ defmodule Chronik.Store.Adapters.Ecto.DomainEvents do
     field :created, :naive_datetime
     field :aggregate_id, :id
     field :domain_event_json, :string
+    field :version, :integer
   end
 end

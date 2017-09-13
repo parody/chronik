@@ -19,14 +19,11 @@ defmodule Chronik.Config do
   end
 
   @doc "`get_config` a specific configuration for a given module"
-  @spec get_config(mod :: module(), key :: atom) :: term()
-  def get_config(module, key) do
-    mod_conf = Application.get_env(:chronik, module, %{})
-
-    unless Keyword.has_key?(mod_conf, key),
-      do: raise Chronik.MissingConfigError.exception(module, key)
-
-    Keyword.fetch!(mod_conf, key)
+  @spec get_config(mod :: module(), key :: atom, default :: term()) :: term()
+  def get_config(module, key, default) do
+    :chronik
+    |> Application.get_env(module, [])
+    |> Keyword.get(key, default)
   end
   @doc """
   `Chronik` can be configured to use different adapters for the

@@ -19,6 +19,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   import Ecto.Query
 
+  alias Ecto.DateTime
   alias Chronik.Store.Adapters.Ecto.ChronikRepo, as: Repo
   alias Chronik.Store.Adapters.Ecto.Aggregate
   alias Chronik.Store.Adapters.Ecto.DomainEvents
@@ -110,7 +111,7 @@ defmodule Chronik.Store.Adapters.Ecto do
             where: e.aggregate_version > ^starting_at,
             order_by: e.aggregate_version,
             select: %{
-                      version: e.id,
+                      version: e.version,
                       aggregate: {a.aggregate, a.aggregate_id},
                       domain_event: e.domain_event,
                       aggregate_version: e.aggregate_version,
@@ -126,17 +127,17 @@ defmodule Chronik.Store.Adapters.Ecto do
   def handle_call({:fetch, version}, _from, state) do
     starting_at =
       case version do
-        :all -> 0
-        v -> v + 1
+        :all -> -1
+        v -> v
       end
 
     query = from e in DomainEvents,
             join: a in Aggregate,
             where: a.id == e.aggregate_id,
-            where: e.id > ^starting_at,
-            order_by: e.id,
+            where: e.version > ^starting_at,
+            order_by: e.version,
             select: %{
-                      version: e.id,
+                      version: e.version,
                       aggregate: {a.aggregate, a.aggregate_id},
                       domain_event: e.domain_event,
                       aggregate_version: e.aggregate_version,
@@ -205,7 +206,7 @@ defmodule Chronik.Store.Adapters.Ecto do
           EventRecord.create(
             :erlang.binary_to_term(row.domain_event),
             row.aggregate,
-            row.version - 1,
+            row.version,
             row.aggregate_version)
         end)
     {:ok, records |> List.last() |> Map.get(:version), records}
@@ -237,10 +238,11 @@ defmodule Chronik.Store.Adapters.Ecto do
       :domain_event => :erlang.term_to_binary(record.domain_event),
       :domain_event_json => json,
       :aggregate_version => record.aggregate_version,
+      :version => record.version,
       :created =>
         record.created_at
         |> from_timestamp()
-        |> Ecto.DateTime.from_erl()
+        |> DateTime.from_erl()
     }
   end
 
@@ -252,9 +254,15 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   defp store_version do
-    case Repo.aggregate((from e in DomainEvents), :count, :id) do
-      0 -> :empty
-      count -> count - 1
+    query =
+      from e in DomainEvents,
+      select: e.version,
+      order_by: [desc: e.version],
+      limit: 1
+
+    case Repo.one(query) do
+      nil -> :empty
+      v -> v
     end
   end
 
@@ -264,11 +272,14 @@ defmodule Chronik.Store.Adapters.Ecto do
         join: a in Aggregate,
         where: e.aggregate_id == a.id,
         where: a.aggregate == ^aggregate_module,
-        where: a.aggregate_id == ^aggregate_id
+        where: a.aggregate_id == ^aggregate_id,
+        order_by: [desc: e.aggregate_version],
+        select: e.aggregate_version,
+        limit: 1
 
-    case Repo.aggregate(query, :count, :id) do
-      0 -> :empty
-      count -> count - 1
+    case Repo.one(query) do
+      nil -> :empty
+      version -> version
     end
   end
 

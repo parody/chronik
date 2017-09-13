@@ -23,15 +23,13 @@ defmodule Chronik.Store.Adapters.ETS do
 
   @doc false
   def init([_store, _opts]) do
-    try do
-      # We use two tables. The @table to store the domain events
-      # and @snapshot_table to store the snapshots.
-      :ets.new(@table, [:named_table, :private])
-      :ets.new(@snapshot_table, [:named_table, :private])
-      {:ok, nil}
-    rescue
-        _ -> {:stop, {:error, "event store already started"}}
-    end
+    # We use two tables. The @table to store the domain events
+    # and @snapshot_table to store the snapshots.
+    :ets.new(@table, [:named_table, :private])
+    :ets.new(@snapshot_table, [:named_table, :private])
+    {:ok, nil}
+  rescue
+    _ -> {:stop, {:error, "event store already started"}}
   end
 
   @doc false

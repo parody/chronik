@@ -1,7 +1,7 @@
 defmodule Chronik.Mixfile do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.1.3"
 
   def project do
     [
@@ -48,7 +48,7 @@ defmodule Chronik.Mixfile do
       licenses: [],
       links: %{"GitHub" => "https://github.com/parody/chronik"},
       files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++
-             ~w()
+             ~w(LICENSE TODO.md)
     ]
   end
 

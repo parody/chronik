@@ -21,21 +21,27 @@ defmodule Chronik.Projection.Test do
     def init(_opts), do: {nil, []}
 
     # When the conuter is created the state is the initial value
-    def next_state(nil, %EventRecord{domain_event: %CounterCreated{id: id, initial_value: value}}) do
+    def handle_event(%EventRecord{domain_event:
+      %CounterCreated{id: id, initial_value: value}}, nil) do
+
       %{id => value}
     end
-    def next_state(state, %EventRecord{domain_event: %CounterCreated{id: id, initial_value: value}}) do
+    def handle_event(%EventRecord{domain_event:
+      %CounterCreated{id: id, initial_value: value}}, state) do
+
       Map.put(state,id, value)
     end
 
     # After an increment we transition to the sum
     # of the state and the increment.
-    def next_state(state, %EventRecord{domain_event: %CounterIncremented{id: id, increment: value}}) do
+    def handle_event(%EventRecord{domain_event:
+      %CounterIncremented{id: id, increment: value}}, state) do
+
       Map.update!(state, id, &(&1 + value))
     end
 
     # Ignore other types of events.
-    def next_state(state, _e) do
+    def handle_event(_e, state) do
       state
     end
   end
@@ -61,7 +67,8 @@ defmodule Chronik.Projection.Test do
     increment_event = %CounterIncremented{id: id, increment: increment_value}
 
     # The first event is on the Store before the Projection is starts.
-    assert {:ok, version, _} = store.append(aggregate, [create_event], [version: :no_stream])
+    assert {:ok, version, _} =
+      store.append(aggregate, [create_event], [version: :no_stream])
 
     # We start the projection and start listening on the aggregate stream.
     # In this case an event is already recorded on the Store.
@@ -74,7 +81,8 @@ defmodule Chronik.Projection.Test do
     assert initial_value == projection.state()[id]
 
     # Store a increment domain event on the Store.
-    {:ok, version, records} = store.append(aggregate, [increment_event], [version: version])
+    {:ok, version, records} =
+      store.append(aggregate, [increment_event], [version: version])
     # and broadcast the new record to the PubSub.
     pub_sub.broadcast(records)
     wait()
@@ -82,7 +90,8 @@ defmodule Chronik.Projection.Test do
     assert ^increment_value = projection.state()[id]
 
     # Store a increment domain event on the Store.
-    {:ok, _version, _records} = store.append(aggregate, [increment_event], [version: version])
+    {:ok, _version, _records} =
+      store.append(aggregate, [increment_event], [version: version])
 
     GenServer.stop(pid)
 

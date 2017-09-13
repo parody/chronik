@@ -10,9 +10,6 @@ config :example, Example.Store,
 config :example, Example.PubSub,
   adapter: Chronik.PubSub.Adapters.Registry
 
-config :chronik, Chronik.Store.Adapters.Ecto.Repo,
+config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
   adapter: Ecto.Adapters.MySQL,
-  database: "chronik",
-  username: "root",
-  password: "root",
-  hostname: "localhost"
+  url: {:system, "CHRONIK_REPO_URL", "ecto://root:root@localhost/chronik"}

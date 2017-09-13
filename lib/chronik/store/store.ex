@@ -37,8 +37,8 @@ defmodule Chronik.Store do
   `{:error, message}` in case of failure.
   """
   @callback append(aggregate :: Chronik.Aggregate,
-    events :: [Chronik.domain_event],
-    opts :: options) :: {:ok, version, [Chronik.EventRecord]} | {:error, String.t}
+    events :: [Chronik.domain_event], opts :: options
+    ) :: {:ok, version, [Chronik.EventRecord]} | {:error, String.t}
 
   @doc """
   Retrieves all events from the store starting (but not including) at `version`.
@@ -100,11 +100,12 @@ defmodule Chronik.Store do
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
-
-      alias Chronik.Store.EventRecord
       @behaviour Chronik.Store
 
-      {_cfg, adapter} = Chronik.Config.fetch_config(__MODULE__, opts)
+      alias Chronik.Store.EventRecord
+      alias Chronik.Config
+
+      {_cfg, adapter} = Config.fetch_config(__MODULE__, opts)
 
       @adapter adapter
 
