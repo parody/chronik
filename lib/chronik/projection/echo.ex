@@ -8,10 +8,11 @@ defmodule Chronik.Projection.Echo do
   defmacro __using__(_opts) do
     quote do
       use Chronik.Projection
+      alias Chronik.EventRecord
 
       def init(_opts), do: {nil, []}
 
-      def next_state(state, event) do
+      def handle_event(%EventRecord{domain_event: event}, state) do
         IO.puts "[#{__MODULE__}] #{inspect event}"
         state
       end

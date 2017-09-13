@@ -2,9 +2,10 @@ defmodule Chronik.Store.Adapters.Ecto.ChronikRepo do
   @moduledoc false
 
   use Ecto.Repo, otp_app: :chronik
+  alias Confex.Resolver
 
   def init(_type, config) do
-    {:ok, config} = Confex.Resolver.resolve(config)
+    {:ok, config} = Resolver.resolve(config)
 
     unless config[:url] do
       raise "Set url config for #{__MODULE__}!"

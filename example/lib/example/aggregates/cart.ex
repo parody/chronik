@@ -39,14 +39,14 @@ defmodule Example.Cart do
   ##
   ## State transition
   ##
-  def next_state(nil, %CartCreated{id: id}) do
+  def handle_event(%CartCreated{id: id}, nil) do
     %Cart{id: id}
   end
-  def next_state(state, %ItemsAdded{item_id: item_id, quantity: quantity}) do
+  def handle_event(%ItemsAdded{item_id: item_id, quantity: quantity}, state) do
     current_quantity = (state.items[item_id] || 0) + quantity
     %{state | items: Map.put(state.items, item_id, current_quantity)}
   end
-  def next_state(state, %ItemsRemoved{item_id: item_id, quantity: quantity}) do
+  def handle_event(%ItemsRemoved{item_id: item_id, quantity: quantity}, state) do
     current_quantity = (state.items[item_id] || 0) - quantity
     %{state | items: Map.put(state.items, item_id, current_quantity)}
   end

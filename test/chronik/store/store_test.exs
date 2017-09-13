@@ -40,10 +40,12 @@ defmodule Chronik.Store.Test do
     {:ok, last_version, _} = store.append(aggregate, events, version: :any)
 
     # Check that nothing new is returnd from the last_version
-    assert {:ok, ^last_version, []} = store.fetch_by_aggregate(aggregate, last_version)
+    assert {:ok, ^last_version, []} =
+      store.fetch_by_aggregate(aggregate, last_version)
 
     # Check that the last event is returned if we fetch from version
-    assert {:ok, _version, [%{domain_event: %CounterIncremented{id: "3", increment: 3}}]} =
+    assert {:ok, _version, [%{domain_event:
+      %CounterIncremented{id: "3", increment: 3}}]} =
       store.fetch_by_aggregate(aggregate, version)
 
     # Fecth all stored records and keep the data field

@@ -56,17 +56,17 @@ defmodule Chronik.Aggregate.Test do
 
     # This is the state transition function for the Counter.
     # From the initial nil state we go to a valid %Counter{} struct.
-    def next_state(nil, %CounterCreated{id: id, initial_value: value}) do
+    def handle_event(%CounterCreated{id: id, initial_value: value}, nil) do
       %Counter{id: id, counter: value}
     end
     # We increment the %Counter{}.
-    def next_state(%Counter{id: id, counter: counter},
-      %CounterIncremented{id: id, increment: increment}) do
+    def handle_event(%CounterIncremented{id: id, increment: increment},
+      %Counter{id: id, counter: counter}) do
       %Counter{id: id, counter: counter + increment}
     end
     # When we destroy the counter we go to a invalid state from which
     # we can not transition out.
-    def next_state(%Counter{}, %CounterDestroyed{}) do
+    def handle_event(%CounterDestroyed{}, %Counter{}) do
       :deleted
     end
 
@@ -132,7 +132,8 @@ defmodule Chronik.Aggregate.Test do
     # This is a composed command to test the |> operator on executes
     @aggregate.create_and_increment(id, @increment)
 
-    # If everything went fine we created and incremented in 3 the new @aggregate.
+    # If everything went fine we created and incremented in 3
+    # the new @aggregate.
     assert %{counter: @increment} = @aggregate.get(id)
   end
 
@@ -161,6 +162,10 @@ defmodule Chronik.Aggregate.Test do
     GenServer.stop(pid, :normal)
     assert false == Process.alive?(pid)
 
+    # The unsupscription to the Regsitry is eventually consistent.
+    # Wait a while to be sure.
+    Process.sleep(100)
+
     # This command should bring the aggregate back up and replay from the
     # snapshot and replay the rest from the Store.
     assert :ok = @aggregate.increment(id, @increment)
@@ -178,7 +183,7 @@ defmodule Chronik.Aggregate.Test do
     pid = aggregate_pid({@aggregate, id})
 
     # Wait for the aggregate to shutdown by a timeout.
-    Process.sleep(10_000)
+    Process.sleep(5_000)
 
     # The aggregate is down.
     assert false == Process.alive?(pid)
