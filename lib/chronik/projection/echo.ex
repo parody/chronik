@@ -7,8 +7,13 @@ defmodule Chronik.Projection.Echo do
   """
   defmacro __using__(_opts) do
     quote do
-      use Chronik.Projection
+      @behaviour Chronik.Projection
+
       alias Chronik.EventRecord
+      alias Chronik.Projection
+
+
+      def start_link(opts), do: Projection.start_link(__MODULE__, opts)
 
       def init(_opts), do: {nil, []}
 

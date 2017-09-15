@@ -15,7 +15,12 @@ defmodule Chronik.Projection.Test do
   # This is a test projection. It receives domain events and keeps a
   # counter updated.
   defmodule KeepCount do
-    use Chronik.Projection
+    @behaviour Chronik.Projection
+    alias Chronik.Projection
+
+    def start_link(opts), do: Projection.start_link(__MODULE__, opts)
+
+    def state(), do: Projection.state(__MODULE__)
 
     # Initially the projection state is nil
     def init(_opts), do: {nil, []}

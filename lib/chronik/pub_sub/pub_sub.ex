@@ -1,4 +1,4 @@
-defmodule Chronik.PubSub do
+  defmodule Chronik.PubSub do
   @moduledoc """
   PubSub adapter contract.
 

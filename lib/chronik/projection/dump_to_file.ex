@@ -7,8 +7,12 @@ defmodule Chronik.Projection.DumpToFile do
   """
   defmacro __using__([filename: filename]) do
     quote do
-      use Chronik.Projection
+      @behaviour Chronik.Projection
+
       alias Chronik.EventRecord
+      alias Chronik.Projection
+
+      def start_link(opts), do: Projection.start_link(__MODULE__, opts)
 
       def init(_opts) do
         File.rm(unquote(filename))

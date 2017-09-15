@@ -10,4 +10,4 @@ config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
 
 config :chronik, Chronik.Aggregate.Test.Counter,
   shutdown_timeout: 1000,
-  snapshot_every: 1000
+  snapshot_every: 4

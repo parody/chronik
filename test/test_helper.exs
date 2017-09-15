@@ -1,11 +1,25 @@
 ExUnit.start()
 # DomainEvents used in the aggregate and projection tests.
 defmodule DomainEvents do
-  import Chronik.Macros
+  defmodule CounterCreated do
+    defstruct [:id, :initial_value]
+  end
 
-  defevent(CounterCreated, [:id, :initial_value])
-  defevent(CounterIncremented, [:id, :increment])
-  defevent(CounterDestroyed, [:id])
+  defmodule CounterIncremented do
+    defstruct [:id, :increment]
+  end
+
+  defmodule CounterNamed do
+    defstruct [:id, :name]
+  end
+
+  defmodule CounterMaxUpdated do
+    defstruct [:id, :max]
+  end
+
+  defmodule CounterDestroyed do
+    defstruct [:id]
+  end
 end
 
 {store, pub_sub} = Chronik.Config.fetch_adapters()

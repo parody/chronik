@@ -6,97 +6,119 @@ defmodule Chronik.Aggregate.Test do
   @increment 3
 
   # Counter is a test aggregate. It has only four commands:
-  # create, increment, create_increment and destroy.
+  # create, increment, uppdate_name_and_max and destroy.
   defmodule Counter do
-    use Chronik.Aggregate, shutdown_timeout: 5000, snapshot_every: 4
+    @behaviour Chronik.Aggregate
 
-    import Chronik.Macros
-
+    alias Chronik.Aggregate
     alias Chronik.Aggregate.Test.Counter
-    alias DomainEvents.{CounterCreated, CounterIncremented, CounterDestroyed}
+    alias DomainEvents.{
+      CounterCreated,
+      CounterIncremented,
+      CounterNamed,
+      CounterMaxUpdated,
+      CounterDestroyed}
 
-    # The aggregate state is just the counter value.
+    # The aggregate state is just the counter, name and max, value.
     defstruct [
       :id,
-      :counter
+      :counter,
+      :name,
+      :max
     ]
 
-    # This command creates a counter.
-    defcommand create(id) do
-      fn state ->
-        state
-        |> execute(&create_validator(&1, id))
-      end
-    end
+    # Public API for the Counter
+    def create(id), do: Aggregate.command(__MODULE__, id, {:create, id})
 
-    # Increment the counter given by id.
-    defcommand increment(id, increment) do
-      fn state ->
-        execute(state, &increment_validator(&1, id, increment))
-      end
-    end
+    def increment(id, increment),
+      do: Aggregate.command(__MODULE__, id, {:increment, increment})
 
-    # This is an example of a compesed command. It binds the execution
-    # of two commands.
-    defcommand create_and_increment(id, increment) do
-      fn state ->
-        state
-        |> execute(&create_validator(&1, id))
-        |> execute(&increment_validator(&1, id, increment))
-      end
-    end
+    def update_name_and_max(id, name, max),
+      do: Aggregate.command(__MODULE__, id,
+        {:update_name_and_max, name, max})
 
-    # Destroy a counter.
-    defcommand destroy(id) do
-      fn state ->
-        state
-        |> execute(&destroy_validator(&1))
-      end
+    def destroy(id),
+      do: Aggregate.command(__MODULE__, id, {:destroy})
+
+    # This is only for debugging purposes
+    def state(id), do: Aggregate.state(__MODULE__, id)
+
+    # Counter command handlers
+    def handle_command({:create, id}, nil) do
+      %CounterCreated{id: id, initial_value: 0}
+    end
+    def handle_command({:create, id}, _state) do
+       raise CartExistsError, "Cart #{inspect id} already created"
+    end
+    def handle_command({:increment, increment},
+      %Counter{id: id, max: max, counter: counter})
+      when counter + increment < max do
+
+      %CounterIncremented{id: id, increment: increment}
+    end
+    def handle_command({:increment}, state) do
+      raise "cannot increment counter on state #{inspect state}"
+    end
+    # This is an example of a multi-entity command.
+    # It binds the execution of two state changes of two different
+    # entities: name and max
+    # The Aggregate.Multi takes care of binding the transitions
+    # and rolling back to original state if some of the commands fail.
+    def handle_command({:update_name_and_max, name, max}, %Counter{id: id} = state) do
+      alias Chronik.Aggregate.Multi
+
+      state
+      |> Multi.new(__MODULE__)
+      |> Multi.delegate(&(&1.name), &rename(&1, id, name))
+      |> Multi.delegate(&(&1.max), &update_max(&1, id, max))
+      |> Multi.run()
+    end
+    def handle_command({:update_name_and_max, _name, _max}, state) do
+      raise "cannot update_name_and_max counter on state #{inspect state}"
+    end
+    def handle_command({:destroy}, %Counter{id: id}) do
+      %CounterDestroyed{id: id}
+    end
+    def handle_command({:destroy}, state) do
+      raise "cannot destroy counter on state #{inspect state}"
     end
 
     # This is the state transition function for the Counter.
     # From the initial nil state we go to a valid %Counter{} struct.
     def handle_event(%CounterCreated{id: id, initial_value: value}, nil) do
-      %Counter{id: id, counter: value}
+      %Counter{id: id, counter: value, max: 1000}
     end
     # We increment the %Counter{}.
     def handle_event(%CounterIncremented{id: id, increment: increment},
       %Counter{id: id, counter: counter}) do
       %Counter{id: id, counter: counter + increment}
     end
+    def handle_event(%CounterNamed{name: name}, state) do
+      put_in(state.name, name)
+    end
+    def handle_event(%CounterMaxUpdated{max: max}, state) do
+      put_in(state.max, max)
+    end
     # When we destroy the counter we go to a invalid state from which
     # we can not transition out.
     def handle_event(%CounterDestroyed{}, %Counter{}) do
-      :deleted
+      :destroyed
     end
 
     ##
-    ## Commands validators
+    ## Internal function
     ##
-    # From a nil state we can create a counter.
-    defp create_validator(nil, id) do
-      %CounterCreated{id: id, initial_value: 0}
-    end
-    # If we try to create a counter from a non-nil state we raise an error.
-    defp create_validator(_state, _id) do
-      raise "already created counter"
+    # This is a command validator on the name entity.
+    defp rename(_name_state, id, name) do
+      %CounterNamed{id: id, name: name}
     end
 
-    # The increment command is valid on every non-nil state
-    defp increment_validator(%Counter{}, id, increment) do
-      %CounterIncremented{id: id, increment: increment}
+    # This is a command validator on the max entity.
+    defp update_max(old_max, id, max) when max > old_max do
+      %CounterMaxUpdated{id: id, max: max}
     end
-    defp increment_validator(_stte, _id, _increment) do
-      raise "cannot increment unexisting counter"
-    end
-
-    # We can destroy a counter from any state
-    defp destroy_validator(%Counter{} = state) do
-      %CounterDestroyed{id: state.id}
-    end
-    # except from a already deleted counter
-    defp destroy_validator(:deleted) do
-      raise "counter already destroyed"
+    defp update_max(old_max, id, max) do
+      raise "cannot reduce the max from #{old_max} to #{max} for counter #{id}"
     end
   end
 
@@ -123,18 +145,21 @@ defmodule Chronik.Aggregate.Test do
     assert :ok = @aggregate.increment(id, @increment)
 
     # The resulting state is 3.
-    assert %{counter: @increment} = @aggregate.get(id)
+    assert %{counter: @increment} = @aggregate.state(id)
   end
 
-  test "Multiple (using pipe operator) transition" do
+  test "Multiple-entity command using Aggregate.Multi" do
     id = "3"
+    @aggregate.create(id)
 
     # This is a composed command to test the |> operator on executes
-    @aggregate.create_and_increment(id, @increment)
+    assert :ok = @aggregate.update_name_and_max(id, "name", 10000)
+    assert {:error, _} = @aggregate.update_name_and_max(id, "name2", 10)
 
     # If everything went fine we created and incremented in 3
     # the new @aggregate.
-    assert %{counter: @increment} = @aggregate.get(id)
+    assert %{max: 10000} = @aggregate.state(id)
+    assert %{name: "name"} = @aggregate.state(id)
   end
 
   test "Command on unexisting aggregate" do
@@ -173,13 +198,13 @@ defmodule Chronik.Aggregate.Test do
     assert pid != aggregate_pid({@aggregate, id})
 
     # The state is restored ok.
-    assert %{counter: ^value} = @aggregate.get(id)
+    assert %{counter: ^value} = @aggregate.state(id)
   end
 
   test "Shutdown timeout" do
     id        = "6"
 
-    assert :ok = @aggregate.handle_command({:create, id})
+    assert :ok = @aggregate.create(id)
     pid = aggregate_pid({@aggregate, id})
 
     # Wait for the aggregate to shutdown by a timeout.
