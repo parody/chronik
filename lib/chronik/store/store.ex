@@ -117,19 +117,11 @@ defmodule Chronik.Store do
       defdelegate fetch_by_aggregate(aggregate, version \\ :all), to: @adapter
       defdelegate compare_version(version1, version2), to: @adapter
 
-      def child_spec(opts) do
-        %{
-          id: __MODULE__,
-          start: {__MODULE__, :start_link, [opts]},
-          type: :supervisor
-        }
-      end
-
-      def start_link(opts \\ []) do
-        Chronik.Store.Supervisor.start_link(__MODULE__, @adapter, opts)
-      end
-
-      defoverridable child_spec: 1
     end
+  end
+
+  def start_link(opts \\ []) do
+    {store, _pub_sub} = Chronik.Config.fetch_adapters()
+    store.start_link(opts)
   end
 end

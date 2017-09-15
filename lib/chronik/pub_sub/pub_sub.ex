@@ -20,21 +20,6 @@
       defdelegate subscribe(opts \\ []), to: @adapter
       defdelegate unsubscribe(), to: @adapter
       defdelegate broadcast(events), to: @adapter
-
-      def child_spec(opts) do
-        %{
-          id: __MODULE__,
-          start: {__MODULE__, :start_link, [opts]},
-          type: :supervisor
-        }
-      end
-
-      @doc false
-      def start_link(opts \\ []) do
-        Chronik.PubSub.Supervisor.start_link(__MODULE__, @adapter, opts)
-      end
-
-      defoverridable child_spec: 1
     end
   end
 
@@ -63,4 +48,9 @@
   Broadcasts an enumeration of `records` to all the subscribers.
   """
   @callback broadcast(records :: [Chronik.EventRecord]) :: result_status
+
+  def start_link(opts \\ []) do
+    {_store, pub_sub} = Chronik.Config.fetch_adapters()
+    pub_sub.start_link(opts)
+  end
 end

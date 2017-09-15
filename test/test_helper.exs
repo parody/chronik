@@ -22,6 +22,5 @@ defmodule DomainEvents do
   end
 end
 
-{store, pub_sub} = Chronik.Config.fetch_adapters()
-store.start_link([store, []])
-pub_sub.start_link([keys: :duplicate, name: pub_sub])
+Chronik.Store.start_link()
+Chronik.PubSub.start_link()

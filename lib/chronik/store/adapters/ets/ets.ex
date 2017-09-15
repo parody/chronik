@@ -17,12 +17,12 @@ defmodule Chronik.Store.Adapters.ETS do
 
   # GenServer callbacks
   @doc false
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: @name)
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, [], name: @name)
   end
 
   @doc false
-  def init([_store, _opts]) do
+  def init([]) do
     # We use two tables. The @table to store the domain events
     # and @snapshot_table to store the snapshots.
     :ets.new(@table, [:named_table, :private])
