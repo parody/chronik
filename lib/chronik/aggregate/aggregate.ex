@@ -117,8 +117,6 @@ defmodule Chronik.Aggregate do
   alias Chronik.AggregateRegistry
   alias Chronik.Config
 
-  # Set the modules attributes
-
   ##
   ## Aggregate API
   ##
@@ -168,8 +166,11 @@ defmodule Chronik.Aggregate do
     # Fetch the configuration for the Store and the PubSub.
     {store, pub_sub} = Config.fetch_adapters()
     log(id, "starting aggregate.")
+    {:ok, version, aggregate_state} = load_from_store(module, id, store)
+
     {:ok, %{id: id,
-            aggregate_state: load_from_store(module, id, store),
+            aggregate_state: aggregate_state,
+            aggregate_version: version,
             timer: update_timer(nil, module),
             num_events: 0,
             blocks: 0,
@@ -239,11 +240,13 @@ defmodule Chronik.Aggregate do
       end
     case store.fetch_by_aggregate(aggregate_tuple, version) do
       {:error, _} -> state
-      {:ok, _version, records} ->
+      {:ok, version, records} ->
         log(id, "replaynig events from #{inspect version} and on.")
-        records
-        |> Enum.map(&Map.get(&1, :domain_event))
-        |> apply_events(state, module)
+        new_state =
+          records
+          |> Enum.map(&Map.get(&1, :domain_event))
+          |> apply_events(state, module)
+        {:ok, version, new_state}
     end
   end
 
@@ -252,11 +255,24 @@ defmodule Chronik.Aggregate do
   end
 
   defp store_and_publish(events, new_state,
-    %{id: id, num_events: num_events, blocks: blocks, store: store,
-    pub_sub: pub_sub, module: module} = state) do
+    %{id: id,
+      num_events: num_events,
+      blocks: blocks,
+      store: store,
+      pub_sub: pub_sub,
+      module: module,
+      aggregate_version: aggregate_version} = state) do
+
+    # Compute the expected version to be found on the Store.
+    version =
+      case aggregate_version do
+        :empty -> :no_stream
+        v -> v
+      end
 
     log(id, "writing events to the store: #{inspect events}")
-    {:ok, version, records} = store.append({module, id}, events)
+    {:ok, new_version, records} = store.append({module, id}, events,
+      [version: version])
 
     log(id, "broadcasting records: #{inspect records}")
     pub_sub.broadcast(records)
@@ -264,8 +280,8 @@ defmodule Chronik.Aggregate do
     num_events = num_events + length(events)
     blocks =
       if div(num_events, get_snapshot_every(module)) > blocks do
-        log(id, "saving a snapshot with version #{inspect version}")
-        store.snapshot({module, id}, new_state, version)
+        log(id, "saving a snapshot with version #{inspect new_version}")
+        store.snapshot({module, id}, new_state, new_version)
         div(num_events, get_snapshot_every(module))
       else
         blocks
@@ -274,6 +290,7 @@ defmodule Chronik.Aggregate do
     {:reply, :ok,
       %{state |
         aggregate_state: new_state,
+        aggregate_version: new_version,
         timer: update_timer(state.timer, module),
         num_events: num_events,
         blocks: blocks

@@ -7,7 +7,7 @@ defmodule Chronik.Mixfile do
     [
       app: :chronik,
       version: @version,
-      elixir: "~> 1.5-rc",
+      elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [coveralls: :test],

@@ -30,7 +30,7 @@ defmodule Chronik.Store do
     - `:no_stream`: verifies that the target stream does not exists
       yet
 
-    - any other integer value: the event number expected to currently
+    - any other value: the event number expected to currently
       be at
 
   The return values are `{:ok, last_inserted_version, records}` on success or
