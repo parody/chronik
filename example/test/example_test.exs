@@ -52,7 +52,7 @@ defmodule ExampleTest do
     Cart.add_items(cart_id, "3", 10)
 
     # Get current projection state
-    %Cart{id: ^cart_id, items: items} = Cart.get(cart_id)
+    %Cart{id: ^cart_id, items: items} = Cart.state(cart_id)
 
     # At this point the cart has two items 1, five items 2 and ten items 3
     assert %{"1" => 2, "2" => 5, "3" => 10} = items

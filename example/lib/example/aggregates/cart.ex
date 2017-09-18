@@ -1,6 +1,6 @@
 defmodule Example.Cart do
   @moduledoc "This a the Cart aggregate."
-  use Chronik.Aggregate
+  @behaviour Chronik.Aggregate
 
   alias Chronik.Aggregate
   alias Example.Cart
@@ -69,7 +69,7 @@ defmodule Example.Cart do
   ##
   ## Used for debugging purposes
   ##
-  def get(id), do: Aggregate.get(__MODULE__, id)
+  def state(id), do: Aggregate.state(__MODULE__, id)
 end
 ##
 ## Exceptions

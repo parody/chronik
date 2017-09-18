@@ -20,6 +20,7 @@
       defdelegate subscribe(opts \\ []), to: @adapter
       defdelegate unsubscribe(), to: @adapter
       defdelegate broadcast(events), to: @adapter
+      defdelegate start_link(opts), to: @adapter
     end
   end
 

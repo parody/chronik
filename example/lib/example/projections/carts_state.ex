@@ -1,12 +1,13 @@
 defmodule Example.Projection.CartsState do
   @moduledoc "This projection keeps the cart state by adding and removing
   items to it."
-  use Chronik.Projection
+  @behaviour Chronik.Projection
+  alias Chronik.Projection
 
   alias Example.DomainEvents.{CartCreated, ItemsAdded, ItemsRemoved}
   alias Chronik.EventRecord
 
-  # The initial state is nil.
+  # # The initial state is nil.
   def init(_opts), do: {nil, []}
 
   # From the initial state we can only create the cart
@@ -32,4 +33,14 @@ defmodule Example.Projection.CartsState do
     current_quantity = (carts[id][item_id] || 0)
     %{carts | id => Map.put(carts[id], item_id, current_quantity + quantity)}
   end
+
+  def child_spec(opts) do
+    %{
+    id: __MODULE__,
+    start: {Projection, :start_link, [__MODULE__, opts]},
+    type: :supervisor
+    }
+  end
+
+  defoverridable child_spec: 1
 end
