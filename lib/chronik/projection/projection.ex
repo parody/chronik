@@ -68,6 +68,8 @@ defmodule Chronik.Projection do
   alias Chronik.EventRecord
   alias Chronik.Config
 
+  defstruct [:version, :pub_sub, :store, :projection_state, :projection]
+
   ##
   ## GenServer callbacks
   ##
@@ -92,7 +94,7 @@ defmodule Chronik.Projection do
     # From the state return by the client code and its version, read
     # from the Store (starting at version) de replay the missing events.
     {version, state} = fetch_and_replay(version, state, projection, store)
-    {:ok, %{version: version,
+    {:ok, %__MODULE__{version: version,
             pub_sub: pub_sub,
             store: store,
             projection_state: state,
@@ -104,7 +106,7 @@ defmodule Chronik.Projection do
     GenServer.call(projection, :state)
   end
   # Return the current projection state.
-  def handle_call(:state, _from, %{projection_state: ps} = state) do
+  def handle_call(:state, _from, %__MODULE__{projection_state: ps} = state) do
     {:reply, ps, state}
   end
   # Process an incoming record synchronously. This is called when the
@@ -118,7 +120,8 @@ defmodule Chronik.Projection do
   # When configured with eventual consistency the records are delivered
   #as messages processed by the handle_info.
   def handle_info(%EventRecord{} = e,
-                  %{projection: projection,
+                  %__MODULE__{
+                    projection: projection,
                     store: store,
                     projection_state: ps,
                     version: version} = state) do
@@ -175,18 +178,18 @@ defmodule Chronik.Projection do
 
   # Try to catch up to a future version coming from the PubSub
   # by fetching missing events from the Store.
-  defp catch_up(version, state, projection, store) do
+  defp catch_up(version, projection_state, projection, store) do
     case store.fetch(version) do
       {:ok, :empty, []} ->
         # There were no events on the Store to catch up.
         warn(projection, "no events found on the Store to do a catch_up")
-        {version, state}
+        {version, projection_state}
 
       {:ok, new_version, records} ->
           # Found some events on the store. Update the projection state.
           log(projection, "catching up events from the store starting at " <>
               "version #{version}")
-          {new_version, apply_records(state, records, projection)}
+          {new_version, apply_records(projection_state, records, projection)}
     end
   end
 

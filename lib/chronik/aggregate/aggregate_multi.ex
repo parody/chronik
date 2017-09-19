@@ -49,6 +49,20 @@ defmodule Chronik.Aggregate.Multi do
   end
 
   @doc """
+  Applies the `fun` function on the aggregate state.
+  """
+  @spec validate(ms :: monad_state(), fun :: fun())
+    :: monad_state()
+  def validate({state, events, module}, validator_fun) do
+    new_events =
+      state
+      |> validator_fun.()
+      |> List.wrap()
+
+    {apply_events(new_events, state, module), events ++ new_events, module}
+  end
+
+  @doc """
   Run a concatenation of entities updates and return the domain events
   generated.
   """

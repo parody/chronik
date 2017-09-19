@@ -221,4 +221,14 @@ defmodule Chronik.Aggregate.Test do
     |> hd()
     |> elem(0)
   end
+
+  test "Optmistic concurrency checks" do
+    id        = "7"
+    {store, _pub_sub} = Chronik.Config.fetch_adapters()
+
+    assert :ok = @aggregate.create(id)
+    assert {:ok, _version, _records} = store.append({@aggregate, id},
+      [%DomainEvents.CounterIncremented{id: id, increment: 3}])
+    assert {:error, _} = @aggregate.increment(id, 4)
+  end
 end

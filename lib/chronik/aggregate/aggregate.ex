@@ -117,6 +117,9 @@ defmodule Chronik.Aggregate do
   alias Chronik.AggregateRegistry
   alias Chronik.Config
 
+  defstruct [:id, :num_events, :blocks, :store, :pub_sub , :module,
+    :aggregate_version, :aggregate_state, :timer]
+
   ##
   ## Aggregate API
   ##
@@ -129,6 +132,7 @@ defmodule Chronik.Aggregate do
   @spec command(module :: module(), id :: Chronik.id(), cmd :: term())
     :: :ok | {:error, String.t}
   def command(module, id, cmd) do
+    log(id, "executing command #{inspect cmd}")
     case Registry.lookup(AggregateRegistry, {module, id}) do
       [] ->
         case Supervisor.start_aggregate(module, id) do
@@ -168,7 +172,7 @@ defmodule Chronik.Aggregate do
     log(id, "starting aggregate.")
     {:ok, version, aggregate_state} = load_from_store(module, id, store)
 
-    {:ok, %{id: id,
+    {:ok, %__MODULE__{id: id,
             aggregate_state: aggregate_state,
             aggregate_version: version,
             timer: update_timer(nil, module),
@@ -184,18 +188,19 @@ defmodule Chronik.Aggregate do
   ##
   # The :state returns the current aggregate state.
   @doc false
-  def handle_call(:state, _from, %{aggregate_state: as} = state) do
+  def handle_call(:state, _from, %__MODULE__{aggregate_state: as} = state) do
     {:reply, as, state}
   end
   # When called with a function, the aggregate executes the function in
   # the current state and if no exceptions were raised, it stores and
   # publishes the events to the PubSub.
-  def handle_call({module, cmd}, _from, %{aggregate_state: as} = state) do
+  def handle_call({module, cmd}, _from, %__MODULE__{aggregate_state: as} = state) do
     new_events =
       cmd
       |> module.handle_command(as)
       |> List.wrap()
 
+    log(state.id, "newly created events: #{inspect new_events}")
     new_state = Enum.reduce(new_events, as, &module.handle_event/2)
     store_and_publish(new_events, new_state, state)
   rescue
@@ -210,7 +215,7 @@ defmodule Chronik.Aggregate do
   @doc false
   # The shutdown timeout is implemented by auto-sending a message :shutdown
   # to the current process.
-  def handle_info(:shutdown, %{id: id} = state) do
+  def handle_info(:shutdown, %__MODULE__{id: id} = state) do
     # TODO: Do a snapshot before going down.
     log(id, "aggregate going down gracefully due to inactivity.")
     {:stop, :normal, state}
@@ -255,7 +260,7 @@ defmodule Chronik.Aggregate do
   end
 
   defp store_and_publish(events, new_state,
-    %{id: id,
+    %__MODULE__{id: id,
       num_events: num_events,
       blocks: blocks,
       store: store,
@@ -271,8 +276,13 @@ defmodule Chronik.Aggregate do
       end
 
     log(id, "writing events to the store: #{inspect events}")
-    {:ok, new_version, records} = store.append({module, id}, events,
-      [version: version])
+
+    {new_version, records} =
+      case store.append({module, id}, events, [version: version]) do
+        {:ok, v, s} -> {v, s}
+        {:error, _} ->
+          raise "a newer version of the aggregate found on the store"
+      end
 
     log(id, "broadcasting records: #{inspect records}")
     pub_sub.broadcast(records)
@@ -288,7 +298,7 @@ defmodule Chronik.Aggregate do
       end
 
     {:reply, :ok,
-      %{state |
+      %__MODULE__{state |
         aggregate_state: new_state,
         aggregate_version: new_version,
         timer: update_timer(state.timer, module),
