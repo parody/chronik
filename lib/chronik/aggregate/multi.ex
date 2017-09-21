@@ -44,7 +44,7 @@ defmodule Chronik.Aggregate.Multi do
     new_events =
       state
       |> lens_fun.()
-      |> val_fun.()
+      |> validator_fun.()
       |> List.wrap()
 
     {apply_events(new_events, state, module), events ++ new_events, module}
@@ -52,10 +52,10 @@ defmodule Chronik.Aggregate.Multi do
 
   @doc "Applies the `val_fun` function on the aggregate state."
   @spec validate(ms :: monad_state(), validator_fun :: fun()) :: monad_state()
-  def validate({state, events, module}, val_fun) do
+  def validate({state, events, module}, validator_fun) do
     new_events =
       state
-      |> val_fun.()
+      |> validator_fun.()
       |> List.wrap()
 
     {apply_events(new_events, state, module), events ++ new_events, module}

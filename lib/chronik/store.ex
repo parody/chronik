@@ -44,8 +44,8 @@ defmodule Chronik.Store do
   """
   @callback append(aggregate :: Chronik.Aggregate,
                       events :: events(),
-                        opts :: options() :: {:ok, version(), event_records()}
-                                           | {:error, String.t}
+                        opts :: options()) :: {:ok, version(), event_records()}
+                                            | {:error, String.t}
 
   @doc """
   Retrieves all events from the store starting (but not including) at
