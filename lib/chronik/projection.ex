@@ -40,7 +40,7 @@ defmodule Chronik.Projection do
   """
 
   @typedoc "The `state` represents the state of an projection."
-  @type state :: term
+  @type state :: term()
 
   # Callbacks
 
@@ -57,7 +57,7 @@ defmodule Chronik.Projection do
       the `Chronik.PubSub`. Possible values are `:eventual` (default) and
       `:strict`.
   """
-  @callback init(opts :: Keyword.t) :: {state, Keyword.t}
+  @callback init(opts :: Keyword.t) :: {state(), Keyword.t}
 
   @doc """
   The `handle_event` function is executed each time an event record is
@@ -66,7 +66,7 @@ defmodule Chronik.Projection do
 
   The return value is a new `state` for the received `record`
   """
-  @callback handle_event(record :: Chronik.EventRecord, state :: state) :: state
+  @callback handle_event(record :: Chronik.EventRecord, state :: state()) :: state()
 
   use GenServer
 

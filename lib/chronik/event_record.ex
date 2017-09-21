@@ -13,20 +13,20 @@ defmodule Chronik.EventRecord do
   ]
 
   @type t :: %__MODULE__{
-    aggregate: any,
-    created_at: non_neg_integer,
-    domain_event: any,
-    version: Chronik.Store.version,
-    aggregate_version: Chronik.Store.version
+    aggregate: any(),
+    created_at: non_neg_integer(),
+    domain_event: any(),
+    version: Chronik.Store.version(),
+    aggregate_version: Chronik.Store.version()
   }
 
   # API
 
   @doc "Helper function for creating records from domain events"
-  @spec create(domain_event :: Chronik.domain_event,
+  @spec create(domain_event :: Chronik.domain_event(),
                   aggregate :: Chronik.Aggregate,
-                    version :: Chronik.Store.version,
-          aggregate_version :: Chronik.Store.version) :: __MODULE__.t
+                    version :: Chronik.Store.version(),
+          aggregate_version :: Chronik.Store.version()) :: __MODULE__.t
   def create(domain_event, aggregate, version, aggregate_version) do
     %__MODULE__{
       created_at: System.system_time(:seconds),

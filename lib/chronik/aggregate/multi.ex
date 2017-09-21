@@ -27,10 +27,10 @@ defmodule Chronik.Aggregate.Multi do
 
   alias Chronik.Aggregate
 
-  @type monad_state :: {Aggregate.state, [Chronik.domain_event], module}
+  @type monad_state :: {Aggregate.state(), [Chronik.domain_event()], module()}
 
   @doc "Create a new state for a multi-entity command."
-  @spec new(state :: Aggregate.state, module :: module) :: monad_state
+  @spec new(state :: Aggregate.state(), module :: module()) :: monad_state()
   def new(state, module), do: {state, [], module}
 
   @doc """
@@ -38,8 +38,9 @@ defmodule Chronik.Aggregate.Multi do
 
   The state of the entity is obtained using the `lens_fun` function.
   """
-  @spec delegate(ms :: monad_state, lens :: fun, val_fun :: fun) :: monad_state
-  def delegate({state, events, module}, lens_fun, val_fun) when is_function(lens_fun) and is_function(val_fun) do
+  @spec delegate(ms :: monad_state(), lens :: fun(), validator_fun :: fun()) :: monad_state()
+  def delegate({state, events, module}, lens_fun, validator_fun)
+  when is_function(lens_fun) and is_function(validator_fun) do
     new_events =
       state
       |> lens_fun.()
@@ -50,7 +51,7 @@ defmodule Chronik.Aggregate.Multi do
   end
 
   @doc "Applies the `val_fun` function on the aggregate state."
-  @spec validate(ms :: monad_state, val_fun :: fun) :: monad_state
+  @spec validate(ms :: monad_state(), validator_fun :: fun()) :: monad_state()
   def validate({state, events, module}, val_fun) do
     new_events =
       state
@@ -64,7 +65,7 @@ defmodule Chronik.Aggregate.Multi do
   Run a concatenation of entities updates and return the domain events
   generated.
   """
-  @spec run(ms :: monad_state) :: [Chronik.domain_event]
+  @spec run(ms :: monad_state()) :: [Chronik.domain_event()]
   def run({_state, events, _module}), do: events
 
   # Internal functions

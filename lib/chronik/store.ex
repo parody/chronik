@@ -12,7 +12,7 @@ defmodule Chronik.Store do
   A simple implementation is a integer starting from 0. The atom
   `:all` is the initial version (without events yet).
   """
-  @type version :: term | :all
+  @type version :: term() | :all
 
   @typep events :: [Chronik.domain_event]
   @typep event_records :: [Chronik.EventRecord]
@@ -43,9 +43,9 @@ defmodule Chronik.Store do
   success or `{:error, message}` in case of failure.
   """
   @callback append(aggregate :: Chronik.Aggregate,
-                      events :: events,
-                        opts :: options) :: {:ok, version, event_records}
-                                          | {:error, String.t}
+                      events :: events(),
+                        opts :: options() :: {:ok, version(), event_records()}
+                                           | {:error, String.t}
 
   @doc """
   Retrieves all events from the store starting (but not including) at
@@ -61,8 +61,8 @@ defmodule Chronik.Store do
   If no records are found on the stream (starting at version) the
   function returns `{:ok, version, []}`.
   """
-  @callback fetch(version :: version) :: {:ok, version, event_records}
-                                       | {:error, String.t}
+  @callback fetch(version :: version()) :: {:ok, version(), event_records()}
+                                         | {:error, String.t}
 
   @doc """
   Retrieves all events from the store for a given aggregate starting
@@ -79,8 +79,8 @@ defmodule Chronik.Store do
   function returns `{:ok, version, []}`.
   """
   @callback fetch_by_aggregate(aggregate :: Chronik.Aggregate,
-                                 version :: version) :: {:ok, version, event_records}
-                                                      | {:error, String.t}
+                                 version :: version()) :: {:ok, version(), event_records()}
+                                                        | {:error, String.t}
 
   @doc """
   This function allows the Projection module to comapre versions of
@@ -90,10 +90,10 @@ defmodule Chronik.Store do
   implementation is to compare the integers and return the
   corresponding atoms.
   """
-  @callback compare_version(version :: version, version :: version) :: :past
-                                                                     | :next_one
-                                                                     | :future
-                                                                     | :equal
+  @callback compare_version(version :: version(), version :: version()) :: :past
+                                                                         | :next_one
+                                                                         | :future
+                                                                         | :equal
 
   @doc """
   This function creates a snapshot in the store for the given
@@ -101,8 +101,8 @@ defmodule Chronik.Store do
   """
   @callback snapshot(aggregate :: Chronik.Aggregate,
                          state :: Chronik.Aggregate.state,
-                       version :: version) :: :ok
-                                            | {:error, reason :: String.t}
+                       version :: version()) :: :ok
+                                              | {:error, reason() :: String.t}
 
   @doc """
   Retrives a snapshot from the Store. If there is no snapshot it
@@ -112,7 +112,7 @@ defmodule Chronik.Store do
   `{version, state}` indicating the state of the snapshot and with
   wich version of the aggregate was created.
   """
-  @callback get_snapshot(aggregate :: Chronik.Aggregate) :: {version, Chronik.Aggregate.state}
+  @callback get_snapshot(aggregate :: Chronik.Aggregate) :: {version(), Chronik.Aggregate.state}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do

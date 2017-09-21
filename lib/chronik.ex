@@ -28,14 +28,14 @@ defmodule Chronik do
   """
 
   @typedoc "The `id` represents an aggregate identifier"
-  @type id :: term
+  @type id :: term()
 
   @typedoc """
   A `command` in Chronik is a 3 element tuple with the following
   format: `{:cmd, arg1 arg2}`
   """
-  @type command :: tuple
+  @type command :: tuple()
 
   @typedoc "Domain events can have any shape"
-  @type domain_event :: any
+  @type domain_event :: any()
 end

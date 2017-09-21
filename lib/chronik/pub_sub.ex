@@ -37,7 +37,7 @@
 
     - `consistency`: `:eventual` (default) or `:strict`
   """
-  @callback subscribe(opts :: Keyword.t) :: result_status
+  @callback subscribe(opts :: Keyword.t) :: result_status()
 
   @doc """
   Unsubscribes the caller from the PubSub. No further events are
@@ -45,12 +45,12 @@
 
   **note**: events could still be on the subscribers' mailbox.
   """
-  @callback unsubscribe :: result_status
+  @callback unsubscribe() :: result_status()
 
   @doc """
   Broadcasts an enumeration of `records` to all the subscribers.
   """
-  @callback broadcast(records :: [Chronik.EventRecord]) :: result_status
+  @callback broadcast(records :: [Chronik.EventRecord]) :: result_status()
 
   # API
 
