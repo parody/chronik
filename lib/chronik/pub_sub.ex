@@ -1,8 +1,8 @@
   defmodule Chronik.PubSub do
   @moduledoc """
-  PubSub adapter contract.
+  `Chronik.PubSub` adapter contract and API.
 
-  In Chronik there is only one feed (all). This means that subscribers
+  In `Chronik` there is only one feed (all). This means that subscribers
   see a total ordering of events.
   """
 
@@ -24,7 +24,7 @@
     end
   end
 
-  @typedoc "The result status of all operations on the pub_sub"
+  @typedoc "The result status of all operations on the `Chronik.PubSub`"
   @type result_status :: :ok | {:error, String.t}
 
   @doc """
@@ -34,21 +34,25 @@
   subscriber will receive the events multiple times.
 
   The accepted options are:
-  * `consistency`: `:eventual` (default) or `:strict`.
+
+    - `consistency`: `:eventual` (default) or `:strict`
   """
   @callback subscribe(opts :: Keyword.t) :: result_status
 
   @doc """
   Unsubscribes the caller from the PubSub. No further events are
-  received from the PubSub. Note: events could
-  still be on the mailbox.
+  received from the PubSub.
+
+  **note**: events could still be on the subscribers' mailbox.
   """
-  @callback unsubscribe() :: result_status
+  @callback unsubscribe :: result_status
 
   @doc """
   Broadcasts an enumeration of `records` to all the subscribers.
   """
   @callback broadcast(records :: [Chronik.EventRecord]) :: result_status
+
+  # API
 
   def start_link(opts \\ []) do
     {_store, pub_sub} = Chronik.Config.fetch_adapters()

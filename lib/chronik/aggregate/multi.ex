@@ -1,14 +1,17 @@
 defmodule Chronik.Aggregate.Multi do
   @moduledoc """
-  This module can be used to generate a commmand that affects multiple entities.
+  `Chronik.Aggregate.Multi` can be used to generate a single commmand
+  that affects multiple entities.
 
-  As can be seen on the test a multiple-entity command can be defined as:
+  As can be seen on the test a multiple-entity command can be defined
+  as:
+
+  ## Example
+
   ```
-  def handle_command({:update_name_and_max, name, max},
-    %Counter{id: id} = state) do
+  alias Chronik.Aggregate.Multi
 
-    alias Chronik.Aggregate.Multi
-
+  def handle_command({:update_name_and_max, name, max}, %Counter{id: id} = state) do
     state
     |> Multi.new(__MODULE__)
     |> Multi.delegate(&(&1.name), &rename(&1, id, name))
@@ -17,46 +20,41 @@ defmodule Chronik.Aggregate.Multi do
   end
   ```
 
-  This command affects both the `name` entity and the `max` entity in a
-  transaction like manner. The `update_max` receives the updated aggregate
-  state.
+  This command affects both the `:name` entity and the `:max` entity
+  in a transaction like manner. The `update_max/3` receives the
+  updated aggregate state.
   """
 
   alias Chronik.Aggregate
 
-  @type monad_state :: {Aggregate.state(), [Chronik.domain_event()], module()}
+  @type monad_state :: {Aggregate.state, [Chronik.domain_event], module}
 
-  @doc """
-  Create a new state for a multi-entity command.
-  """
-  @spec new(state :: Aggregate.state(), module :: module()) :: monad_state
+  @doc "Create a new state for a multi-entity command."
+  @spec new(state :: Aggregate.state, module :: module) :: monad_state
   def new(state, module), do: {state, [], module}
 
   @doc """
-  Applies the `fun` function on a given entity. The state of the entity
-  is obtained using the `lens` function.
+  Applies `val_fun` on a given entity.
+
+  The state of the entity is obtained using the `lens_fun` function.
   """
-  @spec delegate(ms :: monad_state(), lens :: fun(), fun :: fun())
-    :: monad_state()
-  def delegate({state, events, module}, lens_fun, validator_fun) do
+  @spec delegate(ms :: monad_state, lens :: fun, val_fun :: fun) :: monad_state
+  def delegate({state, events, module}, lens_fun, val_fun) when is_function(lens_fun) and is_function(val_fun) do
     new_events =
       state
       |> lens_fun.()
-      |> validator_fun.()
+      |> val_fun.()
       |> List.wrap()
 
     {apply_events(new_events, state, module), events ++ new_events, module}
   end
 
-  @doc """
-  Applies the `fun` function on the aggregate state.
-  """
-  @spec validate(ms :: monad_state(), fun :: fun())
-    :: monad_state()
-  def validate({state, events, module}, validator_fun) do
+  @doc "Applies the `val_fun` function on the aggregate state."
+  @spec validate(ms :: monad_state, val_fun :: fun) :: monad_state
+  def validate({state, events, module}, val_fun) do
     new_events =
       state
-      |> validator_fun.()
+      |> val_fun.()
       |> List.wrap()
 
     {apply_events(new_events, state, module), events ++ new_events, module}
@@ -66,10 +64,12 @@ defmodule Chronik.Aggregate.Multi do
   Run a concatenation of entities updates and return the domain events
   generated.
   """
-  @spec run(ms :: monad_state()) :: [Chronik.domain_event]
+  @spec run(ms :: monad_state) :: [Chronik.domain_event]
   def run({_state, events, _module}), do: events
 
-  defp apply_events(events, state, module) do
+  # Internal functions
+
+  defp apply_events(events, state, module) when is_atom(module) do
     Enum.reduce(events, state, &module.handle_event/2)
   end
 end

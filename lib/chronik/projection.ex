@@ -1,12 +1,12 @@
 defmodule Chronik.Projection do
   @moduledoc """
-  The Projection is a read model connected to the PubSub.
+  `Chronik.Projection` is a read-only model connected to `Chronik.PubSub`
 
-  Client code has to implement the
-  `Chronik.Projection.init` function and the
-  state transition `Chronik.Projection.handle_event`.
+  Client code has to implement the `Chronik.Projection.init/1` function
+  and the state transition `Chronik.Projection.handle_event/2`.
 
-  Example:
+  ## Example
+
   ```
   defmodule DomainEvents do
     defmodule CounterCreated do
@@ -40,75 +40,95 @@ defmodule Chronik.Projection do
   """
 
   @typedoc "The `state` represents the state of an projection."
-  @type state :: term()
+  @type state :: term
 
   # Callbacks
+
   @doc """
-  The `init` function defines the
-  intial state of an projection and some options.
+  The `init` function defines the intial state of an projection and
+  some options.
 
   The accepted `options`:
-  * `version` start replaying events from `version` and up. A `:all`  value
-    indicates that the replay should be from the begining of times.
-  * `consistency` indicates how the projection should subscribe to the
-  PubSub. Possible values are `:eventual` (defualt) and `strict`.
+
+    * `:version` start replaying events from `version` and up. `:all`
+      indicates that the replay should be from the begining of times.
+
+    * `:consistency` indicates how the projection should subscribe to
+      the `Chronik.PubSub`. Possible values are `:eventual` (default) and
+      `:strict`.
   """
   @callback init(opts :: Keyword.t) :: {state, Keyword.t}
 
   @doc """
-  The `handle_event` function is executed each time an event record is received
-  on the PubSub and is responsible of the projection state transition.
+  The `handle_event` function is executed each time an event record is
+  received on the `Chronik.PubSub` and is responsible of the
+  projection state transition.
 
   The return value is a new `state` for the received `record`
   """
   @callback handle_event(record :: Chronik.EventRecord, state :: state) :: state
 
   use GenServer
+
   require Logger
-  alias Chronik.EventRecord
-  alias Chronik.Config
 
-  defstruct [:version, :pub_sub, :store, :projection_state, :projection]
+  alias Chronik.{EventRecord, Config}
 
-  ##
-  ## GenServer callbacks
-  ##
-  def start_link(projection, opts) do
+  defstruct [:version,
+             :pub_sub,
+             :store,
+             :projection_state,
+             :projection]
+
+  # API
+
+  @doc "Return the current state for `projection_id`"
+  def state(projection_id) do
+    GenServer.call(projection_id, :state)
+  end
+
+  @doc "Start a new `projection`"
+  def start_link(projection, opts) when is_atom(projection) do
     GenServer.start_link(__MODULE__, [projection, opts], name: projection)
   end
 
+  # GenServer callbacks
+
   def init([projection, opts]) do
     {store, pub_sub} = Config.fetch_adapters()
-    # Call the client code to get the initial state.
-    # If the projection has a snapshot it will return a valid state
-    # and in options a version where the snapshot was taken.
+
+    # Call the client code to get the initial state. If the projection
+    # has a snapshot it will return a valid state and in options a
+    # version where the snapshot was taken.
     {state, options} = projection.init(opts)
+
     # By default start reading from the beginning of time.
     version = Keyword.get(options, :version, :all)
-    # By defualt the consistency of a projection is :eventual.
+
+    # By default the consistency of a projection is :eventual.
     consistency = Keyword.get(options, :consistency, :eventual)
-    # First subscribe to the PubSub to start receiving records.
-    # Note that as the GenServer is synchronous we won't process
-    # any messages until we finish the init function.
+
+    # First subscribe to the PubSub to start receiving records. Note
+    # that as the GenServer is synchronous we won't process any
+    # messages until we finish the init function.
     :ok = pub_sub.subscribe([consistency: consistency])
+
     # From the state return by the client code and its version, read
-    # from the Store (starting at version) de replay the missing events.
+    # from the Store (starting at version) de replay the missing
+    # events.
     {version, state} = fetch_and_replay(version, state, projection, store)
+
     {:ok, %__MODULE__{version: version,
-            pub_sub: pub_sub,
-            store: store,
-            projection_state: state,
-            projection: projection}}
+                      pub_sub: pub_sub,
+                      store: store,
+                      projection_state: state,
+                      projection: projection}}
   end
 
-  # Projection API
-  def state(projection) do
-    GenServer.call(projection, :state)
-  end
-  # Return the current projection state.
   def handle_call(:state, _from, %__MODULE__{projection_state: ps} = state) do
     {:reply, ps, state}
   end
+
   # Process an incoming record synchronously. This is called when the
   # subscription to the PubSub is configured as :strict.
   def handle_call({:process, e}, _from, state) do
@@ -117,34 +137,29 @@ defmodule Chronik.Projection do
     {:reply, :ok, new_state}
   end
 
-  # When configured with eventual consistency the records are delivered
-  #as messages processed by the handle_info.
-  def handle_info(%EventRecord{} = e,
-                  %__MODULE__{
-                    projection: projection,
-                    store: store,
-                    projection_state: ps,
-                    version: version} = state) do
+  # When configured with eventual consistency the records are
+  # delivered as messages processed by the handle_info.
+  def handle_info(%EventRecord{} = e, %__MODULE__{projection: projection,
+                                                  store: store,
+                                                  projection_state: ps,
+                                                  version: version} = state) do
     new_state =
-      # Use the Store to comapre the current version and the version
+      # Use the Store to compare the current version and the version
       # of the incoming record.
       case store.compare_version(version, e.version) do
         # If the record that came from the PubSub is the next_one to
         # the one we last saw, transition to the following state.
         :next_one ->
-          log(projection, "applying event coming from the PubSub with version "
-             <> " #{e.version}")
-          # Update the Consumer state aplying the record calling the
-          # client handle_event code.
-          %{state |
-            version: e.version,
-            projection_state:
-            apply_records(ps, [e], projection)}
+          log(projection, "applying event coming from the PubSub with version #{e.version}")
+
+          # Update the consumer state applying the record calling the
+          # client `handle_event/2` code.
+          %{state | version: e.version,
+                    projection_state: apply_records(ps, [e], projection)}
         :past ->
           # If the version of the event that came from the PubSub is from
           # the past, just ingnore it.
-          log(projection, "discarding event from the past with " <>
-            "version #{e.version}")
+          log(projection, "discarding event from the past with version #{e.version}")
           state
         :equal ->
           # If we already saw this event skip it.
@@ -154,25 +169,24 @@ defmodule Chronik.Projection do
           # try to fetch the missing events from the Store and the apply
           # the incoming record.
           log(projection, "event(s) coming from the future with version " <>
-              "#{e.version}. Fetching missing events starting at " <>
-              "version #{version} from the store.")
+                          "#{e.version}. Fetching missing events starting at " <>
+                          "version #{version} from the store.")
 
           # Note that the catch up is a best effort approach since
           # events could still be missing in the Store.
           {new_version, proj_state} =
             catch_up(version, ps, projection, store)
 
-          %{state |
-            version: new_version,
-            projection_state: proj_state}
+          %{state | version: new_version,
+                    projection_state: proj_state}
       end
+
     {:noreply, new_state}
   end
 
-  # ##
-  ## Internal functions
-  ##
-  defp apply_records(state, records, projection) do
+  # Internal functions
+
+  defp apply_records(state, records, projection) when is_atom(projection) do
     Enum.reduce(records, state, &projection.handle_event/2)
   end
 
@@ -184,11 +198,9 @@ defmodule Chronik.Projection do
         # There were no events on the Store to catch up.
         warn(projection, "no events found on the Store to do a catch_up")
         {version, projection_state}
-
       {:ok, new_version, records} ->
           # Found some events on the store. Update the projection state.
-          log(projection, "catching up events from the store starting at " <>
-              "version #{version}")
+          log(projection, "catching up events from the store starting at version #{version}")
           {new_version, apply_records(projection_state, records, projection)}
     end
   end

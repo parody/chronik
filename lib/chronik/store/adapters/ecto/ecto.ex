@@ -1,18 +1,6 @@
 defmodule Chronik.Store.Adapters.Ecto do
-  @moduledoc """
-  This is a Ecto adapter for the Store.
+  @moduledoc false
 
-  The Ecto backend can be configured through environment variables
-  which are resolved by Confex.
-
-  The adapter uses two tables:
-  * `tabAggregates` which stores the last snapshot (if any) for a given
-  `aggregate_module` and `id`.
-  * `tabDomainEvents` which stores all the domain events. It has a foreing
-  key to `tabAggregate` to indicate which aggregate emmited the domain event.
-  Events are stored in erlang binary form and also in json for debugging
-  purposes.
-  """
   @behaviour Chronik.Store
 
   use GenServer
@@ -21,8 +9,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   alias Ecto.DateTime
   alias Chronik.Store.Adapters.Ecto.ChronikRepo, as: Repo
-  alias Chronik.Store.Adapters.Ecto.Aggregate
-  alias Chronik.Store.Adapters.Ecto.DomainEvents
+  alias Chronik.Store.Adapters.Ecto.{Aggregate, DomainEvents}
   alias Chronik.EventRecord
 
   require Logger
@@ -30,25 +17,7 @@ defmodule Chronik.Store.Adapters.Ecto do
   @name __MODULE__
   @epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
 
-  @doc false
-  def child_spec(_store, opts) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, opts},
-      type: :worker,
-      restart: :permanent
-    }
-  end
-
-  @doc false
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: @name)
-  end
-
-  @doc false
-  def init(_opts) do
-    Repo.start_link([])
-  end
+  # API
 
   def append(aggregate, events, opts \\ [version: :any]) do
     GenServer.call(__MODULE__, {:append, aggregate, events, opts})
@@ -80,6 +49,25 @@ defmodule Chronik.Store.Adapters.Ecto do
     do: :past
   def compare_version(a, :all) when is_number(a), do: :past
   def compare_version(_, _), do: :error
+
+  def child_spec(_store, opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, opts},
+      type: :worker,
+      restart: :permanent
+    }
+  end
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: @name)
+  end
+
+  # GenServer callbacks
+
+  def init(_opts) do
+    Repo.start_link([])
+  end
 
   # Write the events to the DB.
   def handle_call({:append, aggregate, events, opts}, _from, state) do
@@ -176,13 +164,11 @@ defmodule Chronik.Store.Adapters.Ecto do
     end
   end
 
-  ##
-  ## Internal functions
-  ##
+  # Internal functions
 
   defp get_aggregate({aggregate, id}) do
     case Repo.get_by(Aggregate, aggregate: aggregate, aggregate_id: id) do
-      nil  -> %Aggregate{aggregate: aggregate, aggregate_id: id}
+      nil -> %Aggregate{aggregate: aggregate, aggregate_id: id}
       a -> a
     end
   end
@@ -234,15 +220,12 @@ defmodule Chronik.Store.Adapters.Ecto do
       |> Kernel.<>(Poison.encode!(record.domain_event))
 
     %{
-      :aggregate_id =>  aggregate_id,
-      :domain_event => :erlang.term_to_binary(record.domain_event),
-      :domain_event_json => json,
-      :aggregate_version => record.aggregate_version,
-      :version => record.version,
-      :created =>
-        record.created_at
-        |> from_timestamp()
-        |> DateTime.from_erl()
+      aggregate_id: aggregate_id,
+      domain_event: :erlang.term_to_binary(record.domain_event),
+      domain_event_json: json,
+      aggregate_version: record.aggregate_version,
+      version: record.version,
+      created: record.created_at |> from_timestamp() |> DateTime.from_erl()
     }
   end
 
