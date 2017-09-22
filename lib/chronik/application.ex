@@ -1,11 +1,5 @@
 defmodule Chronik.Application do
-  @moduledoc """
-  The `Chronik` application only starts up the aggregate Registry.
-
-  The client code is responsible of starting the Store and the PubSub.
-  The goal is to let the user include the Store and PubSub in its own
-  supervision tree.
-  """
+  @moduledoc false
 
   use Application
 
@@ -22,6 +16,7 @@ defmodule Chronik.Application do
   end
 
   # Internal functions
+
   defp spec(args, id) do
     Supervisor.child_spec({Registry, args}, id: id)
   end

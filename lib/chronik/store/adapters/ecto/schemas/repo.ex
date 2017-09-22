@@ -2,6 +2,7 @@ defmodule Chronik.Store.Adapters.Ecto.ChronikRepo do
   @moduledoc false
 
   use Ecto.Repo, otp_app: :chronik
+
   alias Confex.Resolver
 
   def init(_type, config) do
