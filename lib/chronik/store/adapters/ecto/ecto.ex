@@ -160,7 +160,15 @@ defmodule Chronik.Store.Adapters.Ecto do
     case Repo.one(query) do
       nil -> {:reply, nil, state}
       %Aggregate{snapshot_version: version, snapshot: snapshot} ->
-        {:reply, {version, :erlang.binary_to_term(snapshot)}, state}
+        try do
+          {:reply, {version, :erlang.binary_to_term(snapshot)}, state}
+        rescue
+          _ ->
+            Logger.error("could not load the snapshot for " <>
+              "#{inspect {aggregate, id}} from the " <>
+              "store. Possible data corruption.")
+            {:reply, nil, state}
+        end
     end
   end
 
