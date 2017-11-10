@@ -14,7 +14,6 @@ defmodule Chronik.Store.Adapters.ETS do
   @snapshot_table Module.concat(__MODULE__, SnapshotTable)
 
   # API
-
   def append(aggregate, events, opts \\ [version: :any]) do
     GenServer.call(@name, {:append, aggregate, events, opts})
   end
@@ -36,15 +35,16 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def compare_version(a, a), do: :equal
-  def compare_version(:all, 0), do: :next_one
-  def compare_version(a, b) when is_number(a) and is_number(b) and b == a + 1,
-    do: :next_one
-  def compare_version(a, b) when is_number(a) and is_number(b) and b > a + 1,
-    do: :future
-  def compare_version(a, b) when is_number(a) and is_number(b) and b < a,
-    do: :past
-  def compare_version(a, :all) when is_number(a), do: :past
+  def compare_version(:all, "0"), do: :next_one
+  def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
+    case {String.to_integer(a), String.to_integer(b)} do
+      {v1, v2} when v2 == v1 + 1 -> :next_one
+      {v1, v2} when v2 > v1 + 1 -> :future
+      {v1, v2} when v2 < v1 -> :past
+    end
+  end
 
+  # GenServer callbacks
   def child_spec(_store, opts) do
     %{
       id: __MODULE__,
@@ -58,7 +58,6 @@ defmodule Chronik.Store.Adapters.ETS do
     GenServer.start_link(__MODULE__, [], name: @name)
   end
 
-  # GenServer callbacks
 
   def init([]) do
     # We use two tables. The @table to store the domain events
@@ -78,7 +77,7 @@ defmodule Chronik.Store.Adapters.ETS do
     # Check that the version asked by the client is consistent with the Store.
     if (version == :no_stream and aggregate_version == :empty) or
        (version == :any) or
-       (is_number(version) and version == aggregate_version) do
+       (is_bitstring(version) and version == aggregate_version) do
           {:reply, do_append(events, aggregate, aggregate_version), state}
     else
       {:reply, {:error, "wrong expected version"}, state}
@@ -91,7 +90,7 @@ defmodule Chronik.Store.Adapters.ETS do
     drop =
       case version do
         :all -> 0
-        version -> version + 1
+        version -> String.to_integer(version) + 1
       end
 
     fetch_version =
@@ -197,14 +196,14 @@ defmodule Chronik.Store.Adapters.ETS do
 
     case num_records do
       0 -> :empty
-      v -> v - 1
+      v -> "#{v - 1}"
     end
   end
 
   defp next_version(version) do
     case version do
-      :empty -> 0
-      v -> v + 1
+      :empty -> "0"
+      v -> "#{String.to_integer(v) + 1}"
     end
   end
 

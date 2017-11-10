@@ -1,6 +1,6 @@
 * Review how the Aggregate Supervisor is inserted in the application
-  treez.
-* Do a snapshot in the aggregate before going down  due to inactivity.
+  tree.
+* Do a snapshot in the aggregate before going down due to inactivity.
 * Use the Ecto has_one/belongs_to in the Ecto Adapter.
 * Provide an id to the projections to enable multiple instances
   of the same projection. This should use a Registry similarly to the one

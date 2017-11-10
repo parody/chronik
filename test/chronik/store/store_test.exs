@@ -71,8 +71,8 @@ defmodule Chronik.Store.Test do
     # Test that events above certain number returns the recent version
     assert {:ok, version, _} = store.fetch()
     assert version != :empty
-    assert {:ok, ^version, []} = store.fetch(1000)
-    assert version != 1000
+    assert {:ok, ^version, []} = store.fetch("1000")
+    assert version != "1000"
 
     {error, _} = store.start_link([store, []])
     assert error != :ok

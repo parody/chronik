@@ -48,14 +48,16 @@ defmodule Chronik.PubSub.Adapters.Registry do
             # Check the consistency type of the subscriber. If the
             # consistency is :eventual we send a normal message, if
             # it is :strict then we do a synchronous call
-
             case Keyword.fetch!(opts, :consistency) do
               :eventual ->
                 send(pid, record)
               :strict ->
-                # FIXME: The purpose of a call is to return a value,
-                # maybe we need better semantics?
-                :ok = GenServer.call(pid, {:process, record})
+                case GenServer.call(pid, {:process, record}) do
+                  :ok -> :ok
+                  _ ->
+                    Logger.warn("the #{inspect pid} projection replied " <>
+                                "a non :ok result.")
+                end
             end
           end))
     end
