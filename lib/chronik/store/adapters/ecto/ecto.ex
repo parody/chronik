@@ -40,13 +40,14 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   def compare_version(a, a), do: :equal
-  def compare_version(:all, 0), do: :next_one
-  def compare_version(a, b) when is_number(a) and is_number(b) and b == a + 1,
-    do: :next_one
-  def compare_version(a, b) when is_number(a) and is_number(b) and b > a + 1,
-    do: :future
-  def compare_version(a, b) when is_number(a) and is_number(b) and b < a,
-    do: :past
+  def compare_version(:all, "0"), do: :next_one
+  def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
+    case {String.to_integer(a), String.to_integer(b)} do
+      {v1, v2} when v2 == v1 + 1 -> :next_one
+      {v1, v2} when v2 > v1 + 1 -> :future
+      {v1, v2} when v2 < v1 -> :past
+    end
+  end
   def compare_version(a, :all) when is_number(a), do: :past
   def compare_version(_, _), do: :error
 
@@ -75,7 +76,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     version = Keyword.get(opts, :version)
     if (version == :no_stream and aggregate_version == :empty) or
        (version == :any) or
-       (is_number(version) and version == aggregate_version) do
+       (is_bitstring(version) and version == aggregate_version) do
           {:reply, do_append(aggregate, events), state}
     else
       {:reply, {:error, "wrong expected version"}, state}
@@ -88,7 +89,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     starting_at =
       case version do
         :all -> -1
-        v -> v
+        v -> String.to_integer(v)
       end
 
     query = from e in DomainEvents,
@@ -116,7 +117,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     starting_at =
       case version do
         :all -> -1
-        v -> v
+        v -> String.to_integer(v)
       end
 
     query = from e in DomainEvents,
@@ -145,7 +146,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     |> where(aggregate: ^aggregate)
     |> where(aggregate_id: ^id)
     |> Repo.update_all(
-      set: [snapshot_version: Integer.to_string(version),
+      set: [snapshot_version: version,
             snapshot: :erlang.term_to_binary(aggregate_state)])
 
     {:reply, :ok, state}
@@ -161,7 +162,7 @@ defmodule Chronik.Store.Adapters.Ecto do
       nil -> {:reply, nil, state}
       %Aggregate{snapshot_version: version, snapshot: snapshot} ->
         try do
-          {:reply, {version, :erlang.binary_to_term(snapshot)}, state}
+          {:reply, {"#{version}", :erlang.binary_to_term(snapshot)}, state}
         rescue
           _ ->
             Logger.error("could not load the snapshot for " <>
@@ -173,7 +174,6 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   # Internal functions
-
   defp get_aggregate({aggregate, id}) do
     case Repo.get_by(Aggregate, aggregate: aggregate, aggregate_id: id) do
       nil -> %Aggregate{aggregate: aggregate, aggregate_id: id}
@@ -186,11 +186,12 @@ defmodule Chronik.Store.Adapters.Ecto do
       Enum.map(rows,
         fn row ->
           EventRecord.create(
-            :erlang.binary_to_term(row.domain_event),
+            domain_event(row.domain_event, aggregate),
             aggregate,
-            row.version,
-            row.aggregate_version)
+            "#{row.version}",
+            "#{row.aggregate_version}")
         end)
+
     {:ok, records |> List.last() |> Map.get(:aggregate_version), records}
   end
   defp build_records(rows) do
@@ -198,11 +199,12 @@ defmodule Chronik.Store.Adapters.Ecto do
       Enum.map(rows,
         fn row ->
           EventRecord.create(
-            :erlang.binary_to_term(row.domain_event),
+            domain_event(row.domain_event, row.aggregate),
             row.aggregate,
-            row.version,
-            row.aggregate_version)
+            "#{row.version}",
+            "#{row.aggregate_version}")
         end)
+
     {:ok, records |> List.last() |> Map.get(:version), records}
   end
 
@@ -231,16 +233,16 @@ defmodule Chronik.Store.Adapters.Ecto do
       aggregate_id: aggregate_id,
       domain_event: :erlang.term_to_binary(record.domain_event),
       domain_event_json: json,
-      aggregate_version: record.aggregate_version,
-      version: record.version,
+      aggregate_version: String.to_integer(record.aggregate_version),
+      version: String.to_integer(record.version),
       created: record.created_at |> from_timestamp() |> DateTime.from_erl()
     }
   end
 
   defp next_version(version) do
     case version do
-      :empty -> 0
-      v -> v + 1
+      :empty -> "0"
+      v -> "#{String.to_integer(v) + 1}"
     end
   end
 
@@ -253,7 +255,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     case Repo.one(query) do
       nil -> :empty
-      v -> v
+      v -> "#{v}"
     end
   end
 
@@ -270,7 +272,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     case Repo.one(query) do
       nil -> :empty
-      version -> version
+      version -> "#{version}"
     end
   end
 
@@ -292,5 +294,15 @@ defmodule Chronik.Store.Adapters.Ecto do
           next_version(agg_version)
         }
       end)
+  end
+
+  def domain_event(event, aggregate) do
+    :erlang.binary_to_term(event)
+  catch
+    _ ->
+      Logger.error("could not load some events for " <>
+                      "#{inspect aggregate} from the " <>
+                      "store. Possible data corruption.")
+      nil
   end
 end

@@ -138,24 +138,27 @@ defmodule Chronik.Aggregate do
   @doc """
   The `command` function is the entry point to Chronik aggregate.
   It sends the `cmd` request to the Aggregate identifed by `module` and `id`.
+  The `timeout` is either `:infinity` or a number of milliseconds (defaults
+  to `5000`).
 
   The results is either `:ok` or `{:error, reason}` in case of failure.
   """
   @spec command(module :: module(),
                     id :: Chronik.id(),
-                   cmd :: term()) :: :ok | {:error, String.t}
-  def command(module, id, cmd) do
+                   cmd :: term(),
+               timeout :: :infinity | non_neg_integer()) :: :ok | {:error, String.t}
+  def command(module, id, cmd, timeout \\ 5000) do
     log(id, "executing command #{inspect cmd}")
     case Registry.lookup(AggregateRegistry, {module, id}) do
       [] ->
         case Supervisor.start_aggregate(module, id) do
           {:ok, pid} ->
-            GenServer.call(pid, {module, cmd})
+            GenServer.call(pid, {module, cmd}, timeout)
           {:error, reason} ->
             {:error, "cannot create process for aggregate root " <>
                      "{#{module}, #{id}}: #{inspect reason}"}
         end
-      [{pid, _metadata}] -> GenServer.call(pid, {module, cmd})
+      [{pid, _metadata}] -> GenServer.call(pid, {module, cmd}, timeout)
     end
   end
 
@@ -213,7 +216,6 @@ defmodule Chronik.Aggregate do
     new_state = Enum.reduce(new_events, as, &module.handle_event/2)
     store_and_publish(new_events, new_state, state)
   rescue
-    # FIXME: this clause will never match
     e ->
       if state do
         {:reply, {:error, e}, state}

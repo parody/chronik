@@ -1,4 +1,5 @@
 defmodule Chronik.Store.Adapters.Ecto.Blob do
+  @moduledoc false
   @behaviour Ecto.Type
 
   alias Chronik.Store.Adapters.Ecto.ChronikRepo
