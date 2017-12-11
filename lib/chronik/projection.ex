@@ -103,7 +103,7 @@ defmodule Chronik.Projection do
     {state, options} = projection.init(opts)
 
     # By default start reading from the beginning of time.
-    version = Keyword.get(options, :version, :all)
+    version = Keyword.get(options, :version, :empty)
 
     # By default the consistency of a projection is :eventual.
     consistency = Keyword.get(options, :consistency, :eventual)
@@ -193,7 +193,8 @@ defmodule Chronik.Projection do
   # Try to catch up to a future version coming from the PubSub
   # by fetching missing events from the Store.
   defp catch_up(version, projection_state, projection, store) do
-    case store.fetch(version) do
+    from = if version == :empty do :all else version end
+    case store.fetch(from) do
       {:ok, :empty, []} ->
         # There were no events on the Store to catch up.
         warn(projection, "no events found on the Store to do a catch_up")
@@ -206,11 +207,20 @@ defmodule Chronik.Projection do
   end
 
   # Replay events from the store.
+  defp fetch_and_replay(:current, state, projection, store) do
+    # TODO: Query the store for only the version, not the whole records!
+    case store.fetch() do
+      {:ok, new_version, _records} ->
+          log(projection, "skipping re-playing")
+          {new_version, state}
+    end
+  end
   defp fetch_and_replay(version, state, projection, store) do
-    case store.fetch(version) do
+    from = if version == :empty do :all else version end
+    case store.fetch(from) do
       {:ok, :empty, []} ->
         warn(projection, "no events found in the store.")
-        {:all, state}
+        {:empty, state}
       {:ok, new_version, records} ->
           log(projection, "re-playing events from version #{version}")
           {new_version, apply_records(state, records, projection)}
