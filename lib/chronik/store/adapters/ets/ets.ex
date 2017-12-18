@@ -35,7 +35,7 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def compare_version(a, a), do: :equal
-  def compare_version(:all, "0"), do: :next_one
+  def compare_version(:empty, "0"), do: :next_one
   def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
     case {String.to_integer(a), String.to_integer(b)} do
       {v1, v2} when v2 == v1 + 1 -> :next_one

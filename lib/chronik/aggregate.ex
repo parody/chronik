@@ -257,7 +257,7 @@ defmodule Chronik.Aggregate do
     case store.fetch_by_aggregate(aggregate_tuple, version) do
       {:error, _} -> state
       {:ok, version, records} ->
-        log(id, "replaying events from #{inspect version} and on.")
+        log(id, "replaying events up to version: #{inspect version}.")
         new_state =
           records
           |> Enum.map(&Map.get(&1, :domain_event))

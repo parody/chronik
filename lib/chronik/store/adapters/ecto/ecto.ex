@@ -40,7 +40,7 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   def compare_version(a, a), do: :equal
-  def compare_version(:all, "0"), do: :next_one
+  def compare_version(:empty, "0"), do: :next_one
   def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
     case {String.to_integer(a), String.to_integer(b)} do
       {v1, v2} when v2 == v1 + 1 -> :next_one
@@ -48,7 +48,7 @@ defmodule Chronik.Store.Adapters.Ecto do
       {v1, v2} when v2 < v1 -> :past
     end
   end
-  def compare_version(a, :all) when is_number(a), do: :past
+  def compare_version(a, :empty) when is_number(a), do: :past
   def compare_version(_, _), do: :error
 
   def child_spec(_store, opts) do
@@ -298,7 +298,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   def domain_event(event, aggregate) do
     :erlang.binary_to_term(event)
-  catch
+  rescue
     _ ->
       Logger.error("could not load some events for " <>
                       "#{inspect aggregate} from the " <>
