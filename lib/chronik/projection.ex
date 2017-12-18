@@ -193,7 +193,7 @@ defmodule Chronik.Projection do
   # Try to catch up to a future version coming from the PubSub
   # by fetching missing events from the Store.
   defp catch_up(version, projection_state, projection, store) do
-    from = if version == :empty do :all else version end
+    from = if version == :empty, do: :all, else: version
     case store.fetch(from) do
       {:ok, :empty, []} ->
         # There were no events on the Store to catch up.
@@ -216,7 +216,7 @@ defmodule Chronik.Projection do
     end
   end
   defp fetch_and_replay(version, state, projection, store) do
-    from = if version == :empty do :all else version end
+    from = if version == :empty, do: :all, else: version
     case store.fetch(from) do
       {:ok, :empty, []} ->
         warn(projection, "no events found in the store.")
