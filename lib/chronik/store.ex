@@ -10,9 +10,9 @@ defmodule Chronik.Store do
   The version of a given event record in the Store.
 
   A simple implementation is a integer starting from 0. The atom
-  `:all` is the initial version (without events yet).
+  `:empty` is the initial version (without events yet).
   """
-  @type version :: term() | :all
+  @type version :: term() | :empty
 
   @typep events :: [Chronik.domain_event]
   @typep event_records :: [Chronik.EventRecord]
@@ -113,6 +113,11 @@ defmodule Chronik.Store do
   wich version of the aggregate was created.
   """
   @callback get_snapshot(aggregate :: Chronik.Aggregate) :: {version(), Chronik.Aggregate.state}
+
+  @doc """
+  Retrives the current version of the store. If there are no record returns :empty.
+  """
+  @callback current_version() :: version()
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do

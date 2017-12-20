@@ -48,7 +48,7 @@ defmodule Chronik.Aggregate.Test do
       %CounterCreated{id: id, initial_value: 0}
     end
     def handle_command({:create, id}, _state) do
-       raise CartExistsError, "Cart #{inspect id} already created"
+       raise "cart #{inspect id} already created"
     end
     def handle_command({:increment, increment},
       %Counter{id: id, max: max, counter: counter})

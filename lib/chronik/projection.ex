@@ -51,7 +51,9 @@ defmodule Chronik.Projection do
   The accepted `options`:
 
     * `:version` start replaying events from `version` and up. `:all`
-      indicates that the replay should be from the begining of times.
+      indicates that the replay should be from the begining of times while
+      `:current` means that no re-play should be made and start feeding domain
+      events from current version and on.
 
     * `:consistency` indicates how the projection should subscribe to
       the `Chronik.PubSub`. Possible values are `:eventual` (default) and
@@ -207,13 +209,8 @@ defmodule Chronik.Projection do
   end
 
   # Replay events from the store.
-  defp fetch_and_replay(:current, state, projection, store) do
-    # TODO: Query the store for only the version, not the whole records!
-    case store.fetch() do
-      {:ok, new_version, _records} ->
-          log(projection, "skipping re-playing")
-          {new_version, state}
-    end
+  defp fetch_and_replay(:current, state, _projection, store) do
+    {store.current_version(), state}
   end
   defp fetch_and_replay(version, state, projection, store) do
     from = if version == :empty, do: :all, else: version
