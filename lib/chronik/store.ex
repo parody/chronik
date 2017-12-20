@@ -130,6 +130,7 @@ defmodule Chronik.Store do
 
       @adapter adapter
 
+      defdelegate current_version(), to: @adapter
       defdelegate append(aggregate, events, opts \\ [version: :any]), to: @adapter
       defdelegate snapshot(aggregate, state, version), to: @adapter
       defdelegate get_snapshot(aggregate), to: @adapter
