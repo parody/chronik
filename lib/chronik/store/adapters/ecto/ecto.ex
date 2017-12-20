@@ -51,6 +51,8 @@ defmodule Chronik.Store.Adapters.Ecto do
   def compare_version(a, :empty) when is_number(a), do: :past
   def compare_version(_, _), do: :error
 
+  def current_version(), do: GenServer.call(@name, :current_version)
+
   def child_spec(_store, opts) do
     %{
       id: __MODULE__,
@@ -70,6 +72,9 @@ defmodule Chronik.Store.Adapters.Ecto do
     Repo.start_link([])
   end
 
+  def handle_call(:current_version, _from, state) do
+    {:reply, store_version(), state}
+  end
   # Write the events to the DB.
   def handle_call({:append, aggregate, events, opts}, _from, state) do
     aggregate_version = aggregate_version(aggregate)

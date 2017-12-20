@@ -11,10 +11,15 @@ defmodule Chronik.Store.Test do
     aggregate = {:test_aggregate, "1"}
 
     assert {:ok, :empty, []} = store.fetch()
+    IO.inspect store.current_version()
+    assert :empty == store.current_version()
+
     # Test that events can be appended to the Store
     assert {:ok, version, [_, _]} = store.append(aggregate,
       [%CounterCreated{id: "11", initial_value: 0},
        %CounterIncremented{id: "11", increment: 3}], version: :any)
+
+    assert :empty != store.current_version()
 
     # If the stream exists and appending with version: :no_stream an error
     # should occurr

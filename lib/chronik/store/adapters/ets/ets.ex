@@ -44,6 +44,8 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
+  def current_version(), do: GenServer.call(@name, :current_version)
+
   # GenServer callbacks
   def child_spec(_store, opts) do
     %{
@@ -69,7 +71,11 @@ defmodule Chronik.Store.Adapters.ETS do
     _ -> {:stop, {:error, "event store already started"}}
   end
 
+  def handle_call(:current_version, _from, state) do
+    {:reply, current_version_local(), state}
+  end
   def handle_call({:append, aggregate, events, opts}, _from, state) do
+
     aggregate_version = get_aggregate_version(aggregate)
     version = Keyword.get(opts, :version)
     log("appending records #{inspect events} from the aggregate #{inspect aggregate}")
@@ -157,16 +163,9 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
-  defp current_version do
-    case :ets.lookup(@table, :version) do
-      [] -> :empty
-      [{:version, version}] -> version
-    end
-  end
-
   defp do_append(events, aggregate, aggregate_version) do
     {new_records, new_version, aggregate_version} =
-      Enum.reduce(events, {[], current_version(), aggregate_version},
+      Enum.reduce(events, {[], current_version_local(), aggregate_version},
         fn (event, {records, version, aggregate_version}) ->
           next_agg_version = next_version(aggregate_version)
           next_version = next_version(version)
@@ -209,5 +208,12 @@ defmodule Chronik.Store.Adapters.ETS do
 
   defp log(msg) do
     Logger.debug(fn -> "[#{inspect __MODULE__}] #{msg}" end)
+  end
+
+  defp current_version_local() do
+    case :ets.lookup(@table, :version) do
+      [] -> :empty
+      [{:version, version}] -> version
+    end
   end
 end
