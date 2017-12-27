@@ -11,7 +11,7 @@ defmodule Chronik.Store.Test do
     aggregate = {:test_aggregate, "1"}
 
     assert {:ok, :empty, []} = store.fetch()
-    IO.inspect store.current_version()
+
     assert :empty == store.current_version()
 
     # Test that events can be appended to the Store
