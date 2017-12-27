@@ -3,6 +3,10 @@ defmodule Chronik.PubSub.Adapters.Registry do
 
   require Logger
 
+  require Chronik.Utils
+
+  alias Chronik.Utils
+
   @behaviour Chronik.PubSub
 
   @name __MODULE__
@@ -22,7 +26,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
     # the subscription is eventual.
     consistency = Keyword.get(opts, :consistency, :eventual)
 
-    log("#{inspect self()} #{consistency} subscribed.")
+    Utils.debug("#{inspect self()} #{consistency} subscribed.")
 
     # There is only one stream (:stream_all). We store the type of
     # consistency on the registry as the metadata.
@@ -32,7 +36,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
 
   @spec unsubscribe :: :ok
   def unsubscribe do
-    log("#{inspect self()} un-subscribed.")
+    Utils.debug("#{inspect self()} un-subscribed.")
 
     # Unregister the process from the stream_all.
     Registry.unregister(@name, :stream_all)
@@ -40,7 +44,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
 
   @spec broadcast(records :: [Chronik.EventRecord]) :: :ok
   def broadcast(records) do
-    log("broadcasting: #{inspect records}")
+    Utils.debug("broadcasting: #{inspect records}")
 
     for record <- records do
       Registry.dispatch(@name, :stream_all,
@@ -55,7 +59,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
                 case GenServer.call(pid, {:process, record}) do
                   :ok -> :ok
                   _ ->
-                    Logger.warn("the #{inspect pid} projection replied " <>
+                    Utils.warn("the #{inspect pid} projection replied " <>
                                 "a non :ok result.")
                 end
             end
@@ -63,9 +67,5 @@ defmodule Chronik.PubSub.Adapters.Registry do
     end
 
     :ok
-  end
-
-  defp log(msg) do
-    Logger.debug(fn -> "[#{inspect __MODULE__}] #{msg}" end)
   end
 end
