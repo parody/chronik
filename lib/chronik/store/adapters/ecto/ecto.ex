@@ -53,6 +53,18 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   def current_version(), do: GenServer.call(@name, :current_version)
 
+
+  def stream_by_aggregate(aggregate, fun, version \\ :all) do
+    transaction =
+      GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
+    transaction.(fun)
+  end
+
+  def stream(fun, version \\ :all) do
+    transaction = GenServer.call(@name, {:stream, version})
+    transaction.(fun)
+  end
+
   def child_spec(_store, opts) do
     %{
       id: __MODULE__,
@@ -114,7 +126,13 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     case Repo.all(query) do
       [] -> {:reply, {:ok, aggregate_version(aggregate), []}, state}
-      rows -> {:reply, build_records(aggregate, rows), state}
+      rows ->
+        records = Enum.map(rows, &build_record/1)
+        version =
+          records
+          |> List.last()
+          |> Map.get(:aggregate_version)
+        {:reply, {:ok, version, records}, state}
     end
   end
   # Fetch all the events from the all-stream starting at version.
@@ -140,7 +158,13 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     case Repo.all(query) do
       [] -> {:reply, {:ok, store_version(), []}, state}
-      rows -> {:reply, build_records(rows), state}
+      rows ->
+        records = Enum.map(rows, &build_record/1)
+        version =
+          records
+          |> List.last()
+          |> Map.get(:version)
+        {:reply, {:ok, version, records}, state}
     end
   end
   # Take a snapshot and write it to the DB.
@@ -177,6 +201,74 @@ defmodule Chronik.Store.Adapters.Ecto do
         end
     end
   end
+  def handle_call({:stream, version}, _from, state) do
+    starting_at =
+      case version do
+        :all -> -1
+        v -> String.to_integer(v)
+      end
+
+    query = from e in DomainEvents,
+            join: a in Aggregate,
+            where: a.id == e.aggregate_id,
+            where: e.version > ^starting_at,
+            order_by: e.version,
+            select: %{
+                      version: e.version,
+                      aggregate: {a.aggregate, a.aggregate_id},
+                      domain_event: e.domain_event,
+                      aggregate_version: e.aggregate_version,
+                      created: e.created
+                    }
+
+    ret =
+      fn fun ->
+        Repo.transaction(fn() ->
+          query
+          |> Repo.stream()
+          |> Stream.map(&build_record/1)
+          |> fun.()
+        end)
+      end
+
+    {:reply, ret, state}
+  end
+  def handle_call({:stream_by_aggregate,
+    {aggregate_module, aggregate_id}, version}, _from, state) do
+
+    starting_at =
+      case version do
+        :all -> -1
+        v -> String.to_integer(v)
+      end
+
+    query = from e in DomainEvents,
+            join: a in Aggregate,
+            where: a.id == e.aggregate_id,
+            where: a.aggregate == ^aggregate_module,
+            where: a.aggregate_id == ^aggregate_id,
+            where: e.aggregate_version > ^starting_at,
+            order_by: e.aggregate_version,
+            select: %{
+                      version: e.version,
+                      aggregate: {a.aggregate, a.aggregate_id},
+                      domain_event: e.domain_event,
+                      aggregate_version: e.aggregate_version,
+                      created: e.created
+                    }
+
+    ret =
+      fn fun ->
+        Repo.transaction(fn() ->
+          query
+          |> Repo.stream()
+          |> Stream.map(&build_record/1)
+          |> fun.()
+        end)
+      end
+
+    {:reply, ret, state}
+  end
 
   # Internal functions
   defp get_aggregate({aggregate, id}) do
@@ -186,31 +278,12 @@ defmodule Chronik.Store.Adapters.Ecto do
     end
   end
 
-  defp build_records(aggregate, rows) do
-    records =
-      Enum.map(rows,
-        fn row ->
-          EventRecord.create(
-            domain_event(row.domain_event, aggregate),
-            aggregate,
-            "#{row.version}",
-            "#{row.aggregate_version}")
-        end)
-
-    {:ok, records |> List.last() |> Map.get(:aggregate_version), records}
-  end
-  defp build_records(rows) do
-    records =
-      Enum.map(rows,
-        fn row ->
-          EventRecord.create(
-            domain_event(row.domain_event, row.aggregate),
-            row.aggregate,
-            "#{row.version}",
-            "#{row.aggregate_version}")
-        end)
-
-    {:ok, records |> List.last() |> Map.get(:version), records}
+  defp build_record(row) do
+    EventRecord.create(
+      domain_event(row.domain_event, row.aggregate),
+      row.aggregate,
+      "#{row.version}",
+      "#{row.aggregate_version}")
   end
 
   defp aggregate_table_id(aggregate) do
