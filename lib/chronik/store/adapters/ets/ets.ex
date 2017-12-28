@@ -46,6 +46,17 @@ defmodule Chronik.Store.Adapters.ETS do
 
   def current_version(), do: GenServer.call(@name, :current_version)
 
+  def stream_by_aggregate(aggregate, fun, version \\ :all) do
+    wrapper_fn =
+      GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
+    wrapper_fn.(fun)
+  end
+
+  def stream(fun, version \\ :all) do
+    wrapper_fn = GenServer.call(@name, {:stream, version})
+    wrapper_fn.(fun)
+  end
+
   # GenServer callbacks
   def child_spec(_store, opts) do
     %{
@@ -112,7 +123,6 @@ defmodule Chronik.Store.Adapters.ETS do
     log("fetched records from #{inspect version}: #{inspect records}.")
     {:reply, {:ok, fetch_version, records}, state}
   end
-
   # Returns the records for a given aggregate starting at version.
   def handle_call({:fetch_by_aggregate, aggregate, version}, _from, state) do
     filter =
@@ -134,7 +144,51 @@ defmodule Chronik.Store.Adapters.ETS do
     log("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
     {:reply, {:ok, get_aggregate_version(aggregate), records}, state}
   end
+  def handle_call({:stream, version}, _from, state) do
+    drop =
+      case version do
+        :all -> 0
+        version -> String.to_integer(version) + 1
+      end
 
+    records = Enum.drop(current_records(), drop)
+    log("fetched records from #{inspect version}: #{inspect records}.")
+
+    ret = fn fun ->
+      records
+      |> Stream.take_while(fn _ -> true end)
+      |> fun.()
+    end
+
+    {:reply, ret, state}
+  end
+  def handle_call({:stream_by_aggregate, aggregate, version}, _from, state) do
+    filter =
+      fn records ->
+        case version do
+          :all -> records
+          _ ->
+            records
+            |> Enum.drop_while(&(&1.aggregate_version != version))
+            |> Enum.drop(1)
+        end
+      end
+
+    records =
+      current_records()
+      |> Enum.filter(&(&1.aggregate == aggregate))
+      |> filter.()
+
+    log("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+
+    ret = fn fun ->
+      records
+      |> Stream.take_while(fn _ -> true end)
+      |> fun.()
+    end
+
+    {:reply, ret, state}
+  end
   # Take a snapshot of the aggregate state and store in the Store.
   def handle_call({:snapshot, aggregate, aggregate_state, version}, _from, state) do
     true = :ets.insert(@snapshot_table, {aggregate, {version, aggregate_state}})
