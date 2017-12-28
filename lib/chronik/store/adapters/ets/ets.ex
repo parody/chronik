@@ -154,7 +154,7 @@ defmodule Chronik.Store.Adapters.ETS do
       end
 
     records = Enum.drop(current_records(), drop)
-    log("fetched records from #{inspect version}: #{inspect records}.")
+    Utils.debug("fetched records from #{inspect version}: #{inspect records}.")
 
     ret = fn fun ->
       records
@@ -181,7 +181,7 @@ defmodule Chronik.Store.Adapters.ETS do
       |> Enum.filter(&(&1.aggregate == aggregate))
       |> filter.()
 
-    log("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+    Utils.debug("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
 
     ret = fn fun ->
       records
