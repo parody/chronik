@@ -15,7 +15,8 @@ defmodule Chronik.Store do
   @type version :: term() | :empty
 
   @typep events :: [Chronik.domain_event]
-  @typep event_records :: [Chronik.EventRecord]
+  @typep event_record :: Chronik.EventRecord
+  @typep event_records :: [event_record]
 
   @doc """
   Append a list of events to the Store.
@@ -118,6 +119,21 @@ defmodule Chronik.Store do
   Retrives the current version of the store. If there are no record returns :empty.
   """
   @callback current_version() :: version()
+
+  @doc """
+  Calls the `fun` function over a stream of domain events starting at version
+  `version`.
+  """
+  @callback stream(fun :: (event_record() , any() -> any()),
+                   version :: version()) :: any()
+
+  @doc """
+  Calls the `fun` function over the `aggregate`'s domain event stream
+  starting at version `version`.
+  """
+  @callback stream_by_aggregate(aggregate :: Chronik.Aggregate,
+                                      fun :: (event_record() , any() -> any()),
+                                  version :: version()) :: any()
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do

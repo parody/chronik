@@ -81,5 +81,13 @@ defmodule Chronik.Store.Test do
 
     {error, _} = store.start_link([store, []])
     assert error != :ok
+
+    # Test Store streaming functionality
+    f = fn stream ->
+      stream
+      |> Enum.reduce(0, fn _, acc -> acc + 1 end)
+    end
+
+    assert 0 < store.stream(f)
   end
 end
