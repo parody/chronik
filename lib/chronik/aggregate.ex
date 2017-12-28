@@ -120,8 +120,10 @@ defmodule Chronik.Aggregate do
 
   require Logger
 
+  require Chronik.Utils
+
   alias Chronik.Aggregate.Supervisor
-  alias Chronik.{AggregateRegistry, Config}
+  alias Chronik.{AggregateRegistry, Config, Utils}
 
   defstruct [:id,
              :num_events,
@@ -148,7 +150,7 @@ defmodule Chronik.Aggregate do
                    cmd :: term(),
                timeout :: :infinity | non_neg_integer()) :: :ok | {:error, String.t}
   def command(module, id, cmd, timeout \\ 5000) do
-    log(id, "executing command #{inspect cmd}")
+    Utils.debug("#{inspect id}: executing command #{inspect cmd}")
     case Registry.lookup(AggregateRegistry, {module, id}) do
       [] ->
         case Supervisor.start_aggregate(module, id) do
@@ -156,7 +158,7 @@ defmodule Chronik.Aggregate do
             GenServer.call(pid, {module, cmd}, timeout)
           {:error, reason} ->
             {:error, "cannot create process for aggregate root " <>
-                     "{#{module}, #{id}}: #{inspect reason}"}
+                     "{#{module}, #{inspect id}}: #{inspect reason}"}
         end
       [{pid, _metadata}] -> GenServer.call(pid, {module, cmd}, timeout)
     end
@@ -185,7 +187,7 @@ defmodule Chronik.Aggregate do
   def init({module, id}) do
     # Fetch the configuration for the Store and the PubSub.
     {store, pub_sub} = Config.fetch_adapters()
-    log(id, "starting aggregate.")
+    Utils.debug("#{inspect id}: starting aggregate.")
     {:ok, version, aggregate_state} = load_from_store(module, id, store)
 
     {:ok, %__MODULE__{id: id,
@@ -212,7 +214,7 @@ defmodule Chronik.Aggregate do
       |> module.handle_command(as)
       |> List.wrap()
 
-    log(state.id, "newly created events: #{inspect new_events}")
+    Utils.debug("#{inspect state.id}: newly created events: #{inspect new_events}")
     new_state = Enum.reduce(new_events, as, &module.handle_event/2)
     store_and_publish(new_events, new_state, state)
   rescue
@@ -229,7 +231,7 @@ defmodule Chronik.Aggregate do
   # :shutdown to the current process.
   def handle_info(:shutdown, %__MODULE__{id: id} = state) do
     # TODO: Do a snapshot before going down.
-    log(id, "aggregate going down gracefully due to inactivity.")
+    Utils.debug("#{inspect id}: aggregate going down gracefully due to inactivity.")
     {:stop, :normal, state}
   end
 
@@ -247,17 +249,17 @@ defmodule Chronik.Aggregate do
     {version, state} =
       case store.get_snapshot(aggregate_tuple) do
         nil ->
-          log(id, "no snapshot found on the store.")
+          Utils.debug("#{inspect id}: no snapshot found on the store.")
           {:all, nil}
         {version, _state} = snapshot ->
-          log(id, "found a snapshot on the store with version " <>
+          Utils.debug("#{inspect id}: found a snapshot on the store with version " <>
                   "#{inspect version}")
           snapshot
       end
     case store.fetch_by_aggregate(aggregate_tuple, version) do
       {:error, _} -> state
       {:ok, version, records} ->
-        log(id, "replaying events up to version: #{inspect version}.")
+        Utils.debug("#{inspect id}: replaying events up to version: #{inspect version}.")
         new_state =
           records
           |> Enum.map(&Map.get(&1, :domain_event))
@@ -286,7 +288,7 @@ defmodule Chronik.Aggregate do
         v -> v
       end
 
-    log(id, "writing events to the store: #{inspect events}")
+    Utils.debug("#{inspect id}: writing events to the store: #{inspect events}")
 
     {new_version, records} =
       case store.append({module, id}, events, [version: version]) do
@@ -295,13 +297,13 @@ defmodule Chronik.Aggregate do
           raise "a newer version of the aggregate found on the store"
       end
 
-    log(id, "broadcasting records: #{inspect records}")
+    Utils.debug("#{inspect id}: broadcasting records: #{inspect records}")
     pub_sub.broadcast(records)
 
     num_events = num_events + length(events)
     blocks =
       if div(num_events, get_snapshot_every(module)) > blocks do
-        log(id, "saving a snapshot with version #{inspect new_version}")
+        Utils.debug("#{inspect id}: saving a snapshot with version #{inspect new_version}")
         store.snapshot({module, id}, new_state, new_version)
         div(num_events, get_snapshot_every(module))
       else
@@ -316,10 +318,6 @@ defmodule Chronik.Aggregate do
         num_events: num_events,
         blocks: blocks
       }}
-  end
-
-  defp log(id, msg) do
-    Logger.debug(fn -> "[#{inspect __MODULE__}:#{inspect id}] #{msg}" end)
   end
 
   defp update_timer(timer, module) do

@@ -25,6 +25,12 @@ defmodule Chronik do
   * The `Chronik.Projection` implements a read model on the
     `Chronik.PubSub`. The domain events are processed in
     order. Missing events are fetch from `Chronik.Store`.
+
+  Debugging can be turned off by placing
+  ```
+  config :chronik, :debug, false
+  ```
+  in a config script.
   """
 
   @typedoc "The `id` represents an aggregate identifier"

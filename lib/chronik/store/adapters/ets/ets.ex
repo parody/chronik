@@ -3,9 +3,11 @@ defmodule Chronik.Store.Adapters.ETS do
 
   use GenServer
 
-  alias Chronik.EventRecord
+  alias Chronik.{EventRecord, Utils}
 
   require Logger
+
+  require Chronik.Utils
 
   @behaviour Chronik.Store
 
@@ -89,7 +91,7 @@ defmodule Chronik.Store.Adapters.ETS do
 
     aggregate_version = get_aggregate_version(aggregate)
     version = Keyword.get(opts, :version)
-    log("appending records #{inspect events} from the aggregate #{inspect aggregate}")
+    Utils.debug("appending records #{inspect events} from the aggregate #{inspect aggregate}")
 
     # Check that the version asked by the client is consistent with the Store.
     if (version == :no_stream and aggregate_version == :empty) or
@@ -120,7 +122,7 @@ defmodule Chronik.Store.Adapters.ETS do
       end
 
     records = Enum.drop(current_records(), drop)
-    log("fetched records from #{inspect version}: #{inspect records}.")
+    Utils.debug("fetched records from #{inspect version}: #{inspect records}.")
     {:reply, {:ok, fetch_version, records}, state}
   end
   # Returns the records for a given aggregate starting at version.
@@ -141,7 +143,7 @@ defmodule Chronik.Store.Adapters.ETS do
       |> Enum.filter(&(&1.aggregate == aggregate))
       |> filter.()
 
-    log("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+    Utils.debug("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
     {:reply, {:ok, get_aggregate_version(aggregate), records}, state}
   end
   def handle_call({:stream, version}, _from, state) do
@@ -152,7 +154,7 @@ defmodule Chronik.Store.Adapters.ETS do
       end
 
     records = Enum.drop(current_records(), drop)
-    log("fetched records from #{inspect version}: #{inspect records}.")
+    Utils.debug("fetched records from #{inspect version}: #{inspect records}.")
 
     ret = fn fun ->
       records
@@ -179,7 +181,7 @@ defmodule Chronik.Store.Adapters.ETS do
       |> Enum.filter(&(&1.aggregate == aggregate))
       |> filter.()
 
-    log("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+    Utils.debug("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
 
     ret = fn fun ->
       records
@@ -192,7 +194,7 @@ defmodule Chronik.Store.Adapters.ETS do
   # Take a snapshot of the aggregate state and store in the Store.
   def handle_call({:snapshot, aggregate, aggregate_state, version}, _from, state) do
     true = :ets.insert(@snapshot_table, {aggregate, {version, aggregate_state}})
-    log("doing a snapshot for aggregate #{inspect aggregate}")
+    Utils.debug("doing a snapshot for aggregate #{inspect aggregate}")
     {:reply, :ok, state}
   end
 
@@ -200,10 +202,10 @@ defmodule Chronik.Store.Adapters.ETS do
   def handle_call({:get_snapshot, aggregate}, _from, state) do
     case :ets.lookup(@snapshot_table, aggregate) do
       [] ->
-        log("no snapshot found on the store.")
+        Utils.debug("no snapshot found on the store.")
         {:reply, nil, state}
       [{^aggregate, snapshot}] ->
-        log("found a snapshot found on the store.")
+        Utils.debug("found a snapshot found on the store.")
         {:reply, snapshot, state}
     end
   end
@@ -232,7 +234,7 @@ defmodule Chronik.Store.Adapters.ETS do
           }
         end)
 
-    log("appending records: #{inspect new_records}")
+    Utils.debug("appending records: #{inspect new_records}")
 
     true = :ets.insert(@table, {:version, new_version})
     true = :ets.insert(@table, {:records,  current_records() ++ new_records})
@@ -258,10 +260,6 @@ defmodule Chronik.Store.Adapters.ETS do
       :empty -> "0"
       v -> "#{String.to_integer(v) + 1}"
     end
-  end
-
-  defp log(msg) do
-    Logger.debug(fn -> "[#{inspect __MODULE__}] #{msg}" end)
   end
 
   defp current_version_local() do
