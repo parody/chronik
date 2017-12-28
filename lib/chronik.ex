@@ -26,7 +26,7 @@ defmodule Chronik do
     `Chronik.PubSub`. The domain events are processed in
     order. Missing events are fetch from `Chronik.Store`.
 
-  Debuggin can be turned off by placing
+  Debugging can be turned off by placing
   ```
   config :chronik, :debug, false
   ```
