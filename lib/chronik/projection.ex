@@ -120,7 +120,7 @@ defmodule Chronik.Projection do
     # From the state return by the client code and its version, read
     # from the Store (starting at version) de replay the missing
     # events.
-    {version, state} = fetch_and_replay(version, state, projection, store)
+    {state, version} = fetch_and_replay(version, state, projection, store)
 
     {:ok, %__MODULE__{version: version,
                       pub_sub: pub_sub,
@@ -159,7 +159,7 @@ defmodule Chronik.Projection do
           # Update the consumer state applying the record calling the
           # client `handle_event/2` code.
           %{state | version: e.version,
-                    projection_state: apply_records(ps, [e], projection)}
+                    projection_state: projection.handle_event(e, ps)}
         :past ->
           # If the version of the event that came from the PubSub is from
           # the past, just ingnore it.
@@ -178,7 +178,7 @@ defmodule Chronik.Projection do
 
           # Note that the catch up is a best effort approach since
           # events could still be missing in the Store.
-          {new_version, proj_state} =
+          {proj_state, new_version} =
             catch_up(version, ps, projection, store)
 
           %{state | version: new_version,
@@ -189,40 +189,50 @@ defmodule Chronik.Projection do
   end
 
   # Internal functions
-
-  defp apply_records(state, records, projection) when is_atom(projection) do
-    Enum.reduce(records, state, &projection.handle_event/2)
+  defp make_stream_handler(projection_state, version, projection) do
+    fn stream ->
+      Enum.reduce(stream, {projection_state, version},
+        fn record, {state, _version} ->
+          {projection.handle_event(record, state), record.version}
+        end)
+    end
   end
 
   # Try to catch up to a future version coming from the PubSub
-  # by fetching missing events from the Store.
+  # by streaming missing events from the Store.
   defp catch_up(version, projection_state, projection, store) do
     from = if version == :empty, do: :all, else: version
-    case store.fetch(from) do
-      {:ok, :empty, []} ->
+
+    stream_handler = make_stream_handler(projection_state, version, projection)
+
+    case store.stream(stream_handler, from) do
+      {^projection_state, :empty} ->
         # There were no events on the Store to catch up.
         Utils.warn("#{projection} :no events found on the Store to do a catch_up")
-        {version, projection_state}
-      {:ok, new_version, records} ->
-          # Found some events on the store. Update the projection state.
-          Utils.debug("#{projection} :catching up events from the store starting at version #{version}")
-          {new_version, apply_records(projection_state, records, projection)}
+        {projection_state, :empty}
+      {new_projection_state, new_version} ->
+        # Found some events on the store. Update the projection state.
+        Utils.debug("#{projection} :catching up events from the store starting at version #{version}")
+        {new_projection_state, new_version}
     end
   end
 
   # Replay events from the store.
-  defp fetch_and_replay(:current, state, _projection, store) do
-    {store.current_version(), state}
+  defp fetch_and_replay(:current, projection_state, _projection, store) do
+    {projection_state, store.current_version()}
   end
-  defp fetch_and_replay(version, state, projection, store) do
+  defp fetch_and_replay(version, projection_state, projection, store) do
     from = if version == :empty, do: :all, else: version
-    case store.fetch(from) do
-      {:ok, :empty, []} ->
+
+    stream_handler = make_stream_handler(projection_state, version, projection)
+
+    case store.stream(stream_handler, from) do
+      {^projection_state, :empty} ->
         Utils.warn("#{projection} :no events found in the store.")
-        {:empty, state}
-      {:ok, new_version, records} ->
-          Utils.debug("#{projection} :re-playing events from version #{version}")
-          {new_version, apply_records(state, records, projection)}
+        {projection_state, :empty}
+      {new_projection_state, new_version} ->
+        Utils.debug("#{projection} :re-playing events from version #{version}")
+        {new_projection_state, new_version}
     end
   end
 end
