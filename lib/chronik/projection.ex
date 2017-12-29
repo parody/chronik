@@ -189,13 +189,13 @@ defmodule Chronik.Projection do
   end
 
   # Internal functions
-
-  defp apply_records(state, current_version, records, projection) when is_atom(projection) do
-    Enum.reduce(records, {state, current_version},
-      fn record, {state, _version} ->
-        {projection.handle_event(record, state), record.version}
-      end
-    )
+  defp make_stream_handler(projection_state, version, projection) do
+    fn stream ->
+      Enum.reduce(stream, {projection_state, version},
+        fn record, {state, _version} ->
+          {projection.handle_event(record, state), record.version}
+        end)
+    end
   end
 
   # Try to catch up to a future version coming from the PubSub
@@ -203,11 +203,9 @@ defmodule Chronik.Projection do
   defp catch_up(version, projection_state, projection, store) do
     from = if version == :empty, do: :all, else: version
 
-    f = fn stream ->
-      apply_records(projection_state, version, stream, projection)
-    end
+    stream_handler = make_stream_handler(projection_state, version, projection)
 
-    case store.stream(f, from) do
+    case store.stream(stream_handler, from) do
       {^projection_state, :empty} ->
         # There were no events on the Store to catch up.
         Utils.warn("#{projection} :no events found on the Store to do a catch_up")
@@ -226,17 +224,15 @@ defmodule Chronik.Projection do
   defp fetch_and_replay(version, projection_state, projection, store) do
     from = if version == :empty, do: :all, else: version
 
-    f = fn stream ->
-      apply_records(projection_state, version, stream, projection)
-    end
+    stream_handler = make_stream_handler(projection_state, version, projection)
 
-    case store.stream(f, from) do
+    case store.stream(stream_handler, from) do
       {^projection_state, :empty} ->
         Utils.warn("#{projection} :no events found in the store.")
         {:empty, projection_state}
       {new_projection_state, new_version} ->
-          Utils.debug("#{projection} :re-playing events from version #{version}")
-          {new_version, new_projection_state}
+        Utils.debug("#{projection} :re-playing events from version #{version}")
+        {new_version, new_projection_state}
     end
   end
 end
