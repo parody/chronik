@@ -82,8 +82,8 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   # GenServer callbacks
 
-  def init(_opts) do
-    Repo.start_link([])
+  def init(opts) do
+    Repo.start_link(opts)
   end
 
   def handle_call(:current_version, _from, state) do
