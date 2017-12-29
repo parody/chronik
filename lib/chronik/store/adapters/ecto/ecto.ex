@@ -57,12 +57,14 @@ defmodule Chronik.Store.Adapters.Ecto do
   def stream_by_aggregate(aggregate, fun, version \\ :all) do
     transaction =
       GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
-    transaction.(fun)
+    {:ok, result} = transaction.(fun)
+    result
   end
 
   def stream(fun, version \\ :all) do
     transaction = GenServer.call(@name, {:stream, version})
-    transaction.(fun)
+    {:ok, result} = transaction.(fun)
+    result
   end
 
   def child_spec(_store, opts) do
