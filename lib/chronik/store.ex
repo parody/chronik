@@ -152,6 +152,8 @@ defmodule Chronik.Store do
       defdelegate get_snapshot(aggregate), to: @adapter
       defdelegate fetch(version \\ :all), to: @adapter
       defdelegate fetch_by_aggregate(aggregate, version \\ :all), to: @adapter
+      defdelegate stream(version \\ :all), to: @adapter
+      defdelegate stream_by_aggregate(aggregate, version \\ :all), to: @adapter
       defdelegate compare_version(version1, version2), to: @adapter
       defdelegate start_link(opts), to: @adapter
     end
