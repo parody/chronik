@@ -3,12 +3,12 @@ defmodule Chronik.Application do
 
   use Application
 
-  @aggregates  Chronik.AggregateRegistry
+  @aggregates Chronik.AggregateRegistry
 
   def start(_type, _args) do
     children = [
       spec([keys: :unique, name: @aggregates], @aggregates),
-      {Chronik.Aggregate.Supervisor, []},
+      Chronik.Aggregate.Supervisor,
     ]
 
     opts = [strategy: :one_for_one, name: Chronik.Supervisor]
