@@ -1,7 +1,7 @@
 defmodule Chronik.Aggregate.Supervisor do
   @moduledoc false
 
-  use Supervisor
+  use Supervisor, start: {__MODULE__, :start_link, []}
 
   @name __MODULE__
 
@@ -13,13 +13,13 @@ defmodule Chronik.Aggregate.Supervisor do
     Supervisor.start_child(__MODULE__, [aggregate, id])
   end
 
-  def start_link(_opts) do
+  def start_link do
     Supervisor.start_link(__MODULE__, [], name: @name)
   end
 
   # Supervisor callbacks
 
-  def init(_opts) do
+  def init([]) do
     child = worker(Chronik.Aggregate, [], restart: :transient)
     supervise([child], strategy: :simple_one_for_one)
   end

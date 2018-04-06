@@ -17,7 +17,7 @@ defmodule Chronik.PubSub.Adapters.Registry do
   end
 
   def start_link(_opts) do
-    Registry.start_link([keys: :duplicate, name: __MODULE__])
+    Registry.start_link([keys: :duplicate, name: @name])
   end
 
   @spec subscribe(opts :: Keyword.t) :: :ok
