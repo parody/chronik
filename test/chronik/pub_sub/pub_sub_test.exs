@@ -15,10 +15,10 @@ defmodule Chronik.PubSub.Test do
 
   test "subscribe, broadcast and receive events", %{pub_sub: pub_sub} do
     # Check that we can subscribe to the PubSub
-    assert_ok pub_sub.subscribe()
+    assert_ok(pub_sub.subscribe())
 
     # Check that we can broadcast to the PubSub
-    assert_ok pub_sub.broadcast([:event1, :event2, :event3])
+    assert_ok(pub_sub.broadcast([:event1, :event2, :event3]))
 
     # Check that events are received (in order)
     assert_receive :event1
@@ -31,7 +31,7 @@ defmodule Chronik.PubSub.Test do
     pub_sub.broadcast([:event1])
 
     # Check that we can unsubscribe from the PubSub
-    assert_ok pub_sub.unsubscribe()
+    assert_ok(pub_sub.unsubscribe())
 
     # :event2 is broadcasted while we are unsubscried from the PubSub
     pub_sub.broadcast([:event2])

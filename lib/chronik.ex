@@ -27,9 +27,11 @@ defmodule Chronik do
     order. Missing events are fetch from `Chronik.Store`.
 
   Debugging can be turned off by placing
+
   ```
   config :chronik, :debug, false
   ```
+
   in a config script.
   """
 
