@@ -17,7 +17,7 @@ defmodule Chronik.Projection.Echo do
       def init(_opts), do: {nil, []}
 
       def handle_event(%EventRecord{domain_event: event}, state) do
-        IO.puts "[#{__MODULE__}] #{inspect event}"
+        IO.puts("[#{__MODULE__}] #{inspect(event)}")
         state
       end
     end

@@ -29,6 +29,8 @@ defmodule Chronik.Aggregate.Multi do
 
   @type monad_state :: {Aggregate.state(), [Chronik.domain_event()], module()}
 
+  # API
+
   @doc "Create a new state for a multi-entity command."
   @spec new(state :: Aggregate.state(), module :: module()) :: monad_state()
   def new(state, module), do: {state, [], module}
@@ -40,7 +42,7 @@ defmodule Chronik.Aggregate.Multi do
   """
   @spec delegate(ms :: monad_state(), lens :: fun(), validator_fun :: fun()) :: monad_state()
   def delegate({state, events, module}, lens_fun, validator_fun)
-  when is_function(lens_fun) and is_function(validator_fun) do
+      when is_function(lens_fun) and is_function(validator_fun) do
     new_events =
       state
       |> lens_fun.()

@@ -11,6 +11,7 @@ defmodule Chronik.Store.Adapters.Ecto.ChronikRepo do
     unless config[:url] do
       raise "Set url config for #{__MODULE__}!"
     end
+
     {:ok, config}
   end
 
@@ -19,6 +20,6 @@ defmodule Chronik.Store.Adapters.Ecto.ChronikRepo do
       id: __MODULE__,
       start: {__MODULE__, :start_link, [opts]},
       type: :supervisor
-      }
+    }
   end
 end

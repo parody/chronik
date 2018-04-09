@@ -9,4 +9,3 @@ config :chronik, ecto_repos: [Chronik.Store.Adapters.Ecto.ChronikRepo]
 config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
   adapter: Ecto.Adapters.MySQL,
   url: {:system, "CHRONIK_REPO_URL", "ecto://root:root@localhost/chronik"}
-

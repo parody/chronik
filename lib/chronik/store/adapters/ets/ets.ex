@@ -16,6 +16,7 @@ defmodule Chronik.Store.Adapters.ETS do
   @snapshot_table Module.concat(__MODULE__, SnapshotTable)
 
   # API
+
   def append(aggregate, events, opts \\ [version: :any]) do
     GenServer.call(@name, {:append, aggregate, events, opts})
   end
@@ -37,7 +38,9 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   def compare_version(a, a), do: :equal
+
   def compare_version(:empty, "0"), do: :next_one
+
   def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
     case {String.to_integer(a), String.to_integer(b)} do
       {v1, v2} when v2 == v1 + 1 -> :next_one
@@ -46,11 +49,10 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
-  def current_version(), do: GenServer.call(@name, :current_version)
+  def current_version, do: GenServer.call(@name, :current_version)
 
   def stream_by_aggregate(aggregate, fun, version \\ :all) do
-    wrapper_fn =
-      GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
+    wrapper_fn = GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
     wrapper_fn.(fun)
   end
 
@@ -60,6 +62,7 @@ defmodule Chronik.Store.Adapters.ETS do
   end
 
   # GenServer callbacks
+
   def child_spec(_store, opts) do
     %{
       id: __MODULE__,
@@ -72,7 +75,6 @@ defmodule Chronik.Store.Adapters.ETS do
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: @name)
   end
-
 
   def init([]) do
     # We use two tables. The @table to store the domain events
@@ -87,17 +89,16 @@ defmodule Chronik.Store.Adapters.ETS do
   def handle_call(:current_version, _from, state) do
     {:reply, current_version_local(), state}
   end
-  def handle_call({:append, aggregate, events, opts}, _from, state) do
 
+  def handle_call({:append, aggregate, events, opts}, _from, state) do
     aggregate_version = get_aggregate_version(aggregate)
     version = Keyword.get(opts, :version)
-    Utils.debug("appending records #{inspect events} from the aggregate #{inspect aggregate}")
+    Utils.debug("appending records #{inspect(events)} from the aggregate #{inspect(aggregate)}")
 
     # Check that the version asked by the client is consistent with the Store.
-    if (version == :no_stream and aggregate_version == :empty) or
-       (version == :any) or
-       (is_bitstring(version) and version == aggregate_version) do
-          {:reply, do_append(events, aggregate, aggregate_version), state}
+    if (version == :no_stream and aggregate_version == :empty) or version == :any or
+         (is_bitstring(version) and version == aggregate_version) do
+      {:reply, do_append(events, aggregate, aggregate_version), state}
     else
       {:reply, {:error, "wrong expected version"}, state}
     end
@@ -114,7 +115,9 @@ defmodule Chronik.Store.Adapters.ETS do
 
     fetch_version =
       case current_records() do
-        [] -> :empty
+        [] ->
+          :empty
+
         records ->
           records
           |> List.last()
@@ -122,30 +125,33 @@ defmodule Chronik.Store.Adapters.ETS do
       end
 
     records = Enum.drop(current_records(), drop)
-    Utils.debug("fetched records from #{inspect version}: #{inspect records}.")
+    Utils.debug("fetched records from #{inspect(version)}: #{inspect(records)}.")
     {:reply, {:ok, fetch_version, records}, state}
   end
+
   # Returns the records for a given aggregate starting at version.
   def handle_call({:fetch_by_aggregate, aggregate, version}, _from, state) do
-    filter =
-      fn records ->
-        case version do
-          :all -> records
-          _ ->
-            records
-            |> Enum.drop_while(&(&1.aggregate_version != version))
-            |> Enum.drop(1)
-        end
+    filter = fn records ->
+      case version do
+        :all ->
+          records
+
+        _ ->
+          records
+          |> Enum.drop_while(&(&1.aggregate_version != version))
+          |> Enum.drop(1)
       end
+    end
 
     records =
       current_records()
       |> Enum.filter(&(&1.aggregate == aggregate))
       |> filter.()
 
-    Utils.debug("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+    Utils.debug("fetched records for aggregate #{inspect(aggregate)}: #{inspect(records)}.")
     {:reply, {:ok, get_aggregate_version(aggregate), records}, state}
   end
+
   def handle_call({:stream, version}, _from, state) do
     drop =
       case version do
@@ -154,7 +160,7 @@ defmodule Chronik.Store.Adapters.ETS do
       end
 
     records = Enum.drop(current_records(), drop)
-    Utils.debug("fetched records from #{inspect version}: #{inspect records}.")
+    Utils.debug("fetched records from #{inspect(version)}: #{inspect(records)}.")
 
     ret = fn fun ->
       records
@@ -164,24 +170,26 @@ defmodule Chronik.Store.Adapters.ETS do
 
     {:reply, ret, state}
   end
+
   def handle_call({:stream_by_aggregate, aggregate, version}, _from, state) do
-    filter =
-      fn records ->
-        case version do
-          :all -> records
-          _ ->
-            records
-            |> Enum.drop_while(&(&1.aggregate_version != version))
-            |> Enum.drop(1)
-        end
+    filter = fn records ->
+      case version do
+        :all ->
+          records
+
+        _ ->
+          records
+          |> Enum.drop_while(&(&1.aggregate_version != version))
+          |> Enum.drop(1)
       end
+    end
 
     records =
       current_records()
       |> Enum.filter(&(&1.aggregate == aggregate))
       |> filter.()
 
-    Utils.debug("fetched records for aggregate #{inspect aggregate}: #{inspect records}.")
+    Utils.debug("fetched records for aggregate #{inspect(aggregate)}: #{inspect(records)}.")
 
     ret = fn fun ->
       records
@@ -191,10 +199,11 @@ defmodule Chronik.Store.Adapters.ETS do
 
     {:reply, ret, state}
   end
+
   # Take a snapshot of the aggregate state and store in the Store.
   def handle_call({:snapshot, aggregate, aggregate_state, version}, _from, state) do
     true = :ets.insert(@snapshot_table, {aggregate, {version, aggregate_state}})
-    Utils.debug("doing a snapshot for aggregate #{inspect aggregate}")
+    Utils.debug("doing a snapshot for aggregate #{inspect(aggregate)}")
     {:reply, :ok, state}
   end
 
@@ -204,6 +213,7 @@ defmodule Chronik.Store.Adapters.ETS do
       [] ->
         Utils.debug("no snapshot found on the store.")
         {:reply, nil, state}
+
       [{^aggregate, snapshot}] ->
         Utils.debug("found a snapshot found on the store.")
         {:reply, snapshot, state}
@@ -221,23 +231,24 @@ defmodule Chronik.Store.Adapters.ETS do
 
   defp do_append(events, aggregate, aggregate_version) do
     {new_records, new_version, aggregate_version} =
-      Enum.reduce(events, {[], current_version_local(), aggregate_version},
-        fn (event, {records, version, aggregate_version}) ->
-          next_agg_version = next_version(aggregate_version)
-          next_version = next_version(version)
-          record =
-            EventRecord.create(event, aggregate, next_version, next_agg_version)
-          {
-            records ++  [record],
-            next_version,
-            next_agg_version
-          }
-        end)
+      Enum.reduce(events, {[], current_version_local(), aggregate_version}, fn event,
+                                                                               {records, version,
+                                                                                aggregate_version} ->
+        next_agg_version = next_version(aggregate_version)
+        next_version = next_version(version)
+        record = EventRecord.create(event, aggregate, next_version, next_agg_version)
 
-    Utils.debug("appending records: #{inspect new_records}")
+        {
+          records ++ [record],
+          next_version,
+          next_agg_version
+        }
+      end)
+
+    Utils.debug("appending records: #{inspect(new_records)}")
 
     true = :ets.insert(@table, {:version, new_version})
-    true = :ets.insert(@table, {:records,  current_records() ++ new_records})
+    true = :ets.insert(@table, {:records, current_records() ++ new_records})
     :ets.lookup(@table, :records)
 
     {:ok, aggregate_version, new_records}
@@ -262,7 +273,7 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
-  defp current_version_local() do
+  defp current_version_local do
     case :ets.lookup(@table, :version) do
       [] -> :empty
       [{:version, version}] -> version
