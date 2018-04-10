@@ -43,6 +43,11 @@ defmodule Chronik.Aggregate.Test do
     def state(id), do: Aggregate.state(__MODULE__, id)
 
     # Counter command handlers
+    def handle_command({:create, nil}, nil) do
+      # Return the PID to check that the GenServer is down.
+      raise "#{:erlang.pid_to_list self()}"
+    end
+
     def handle_command({:create, id}, nil) do
       %CounterCreated{id: id, initial_value: 0}
     end
@@ -52,7 +57,7 @@ defmodule Chronik.Aggregate.Test do
     end
 
     def handle_command({:increment, increment}, %Counter{id: id, max: max, counter: counter})
-        when counter + increment < max do
+        when is_integer(increment) and counter + increment < max do
       %CounterIncremented{id: id, increment: increment}
     end
 
@@ -244,5 +249,21 @@ defmodule Chronik.Aggregate.Test do
              ])
 
     assert {:error, _} = @aggregate.increment(id, 4)
+  end
+
+  test "Stop on fail initial command" do
+    {:error, %RuntimeError{message: pid_st}} = @aggregate.create(nil)
+    pid = pid_st |> String.to_charlist() |> :erlang.list_to_pid()
+    assert false == Process.alive?(pid)
+  end
+
+  test "Fail command on initialized aggregate does not stops the GenServer" do
+    id = "8"
+    :ok = @aggregate.create(id)
+    pid = aggregate_pid({@aggregate, id})
+    assert true == Process.alive?(pid)
+    # Calling increment with a non-integer fails, but keeps the aggreate alive.
+    assert {:error, _} = @aggregate.increment(id, nil)
+    assert true == Process.alive?(pid)
   end
 end
