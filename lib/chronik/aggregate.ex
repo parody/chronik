@@ -232,7 +232,7 @@ defmodule Chronik.Aggregate do
     store_and_publish(new_events, new_state, state)
   rescue
     e ->
-      if state do
+      if as do
         {:reply, {:error, e}, state}
       else
         {:stop, :normal, {:error, e}, state}
