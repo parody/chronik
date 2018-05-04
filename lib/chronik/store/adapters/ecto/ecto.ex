@@ -178,7 +178,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     |> where(aggregate_id: ^id)
     |> Repo.update_all(
       set: [snapshot_version: version,
-            snapshot: :erlang.term_to_binary(aggregate_state)])
+            snapshot: :erlang.term_to_binary(aggregate_state, compressed: 1)])
 
     {:reply, :ok, state}
   end
@@ -311,7 +311,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     %{
       aggregate_id: aggregate_id,
-      domain_event: :erlang.term_to_binary(record.domain_event),
+      domain_event: :erlang.term_to_binary(record.domain_event, compressed: 1),
       domain_event_json: json,
       aggregate_version: String.to_integer(record.aggregate_version),
       version: String.to_integer(record.version),
