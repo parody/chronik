@@ -63,7 +63,7 @@ defmodule Chronik.Mixfile do
       # For Ecto-MySQL store
       {:ecto, "~> 2.1"},
       {:mariaex, "~> 0.8.2"},
-      {:poison, "~> 3.1.0"},
+      {:jason, "~> 1.0.0"},
       {:confex, "~> 3.2.3"}
     ]
   end
