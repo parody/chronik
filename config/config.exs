@@ -1,3 +1,5 @@
 use Mix.Config
 
-import_config "#{Mix.env()}.exs"
+config :ecto, json_library: Jason
+
+import_config "#{Mix.env}.exs"

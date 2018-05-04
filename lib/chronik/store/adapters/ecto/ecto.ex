@@ -360,7 +360,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     json =
       record.domain_event.__struct__
       |> Atom.to_string()
-      |> Kernel.<>(Poison.encode!(record.domain_event))
+      |> Kernel.<>(Jason.encode!(record.domain_event))
 
     %{
       aggregate_id: aggregate_id,
