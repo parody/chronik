@@ -1,5 +1,18 @@
 defmodule Chronik.Store.Adapters.Ecto do
-  @moduledoc false
+  @moduledoc """
+  Ecto adapter for `Chronik.Store`
+
+  ## Configuration
+
+  You can configure compression for the aggregate snapshot and domain
+  events only for this adapter. By default both values are at 0
+  (compression disabled).
+
+  - `:aggregate_compression_level`
+  - `:domain_event_compression_level`
+
+  Both accept an integer from 0 to 9, being 9 the highest compression.
+  """
 
   @behaviour Chronik.Store
 
@@ -16,6 +29,9 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   @name __MODULE__
   @epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
+
+  @aggregate_compression Application.get_env(:chronik, __MODULE__)[:aggregate_compression_level] || 0
+  @domain_event_compression Application.get_env(:chronik, __MODULE__)[:domain_event_compression_level] || 0
 
   # API
 
@@ -197,8 +213,8 @@ defmodule Chronik.Store.Adapters.Ecto do
     |> where(aggregate: ^aggregate)
     |> where(aggregate_id: ^id)
     |> Repo.update_all(
-      set: [snapshot_version: version, snapshot: :erlang.term_to_binary(aggregate_state)]
-    )
+      set: [snapshot_version: version,
+            snapshot: :erlang.term_to_binary(aggregate_state, compressed: @aggregate_compression)])
 
     {:reply, :ok, state}
   end
@@ -348,7 +364,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     %{
       aggregate_id: aggregate_id,
-      domain_event: :erlang.term_to_binary(record.domain_event),
+      domain_event: :erlang.term_to_binary(record.domain_event, compressed: @domain_event_compression),
       domain_event_json: json,
       aggregate_version: String.to_integer(record.aggregate_version),
       version: String.to_integer(record.version),
