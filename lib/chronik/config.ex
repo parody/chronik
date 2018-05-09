@@ -4,14 +4,14 @@ defmodule Chronik.Config do
   @doc """
   Returns the adapter configuration for a given `module`
   """
-  @spec fetch_config(mod :: module(), opts :: Keyword.t) :: {term(), atom()} | no_return()
+  @spec fetch_config(mod :: module(), opts :: Keyword.t()) :: {term(), atom()} | no_return()
   def fetch_config(mod, opts) do
     # Stolen from Ecto
     otp_app = Keyword.fetch!(opts, :otp_app)
-    config  = Application.get_env(otp_app, mod, [])
+    config = Application.get_env(otp_app, mod, [])
     adapter = opts[:adapter] || config[:adapter]
 
-    unless adapter, do: raise Chronik.MissingAdapterError, opts
+    unless adapter, do: raise(Chronik.MissingAdapterError, opts)
 
     case Code.ensure_loaded?(adapter) do
       true -> {config, adapter}
@@ -36,7 +36,7 @@ defmodule Chronik.Config do
   def fetch_adapters do
     config = Application.get_env(:chronik, :adapters)
     pub_sub = Keyword.fetch!(config, :pub_sub)
-    store  = Keyword.fetch!(config, :store)
+    store = Keyword.fetch!(config, :store)
 
     {store, pub_sub}
   end

@@ -3,10 +3,11 @@ defmodule Chronik.MissingAdapterError do
   defexception [:message]
 
   def exception(opts) do
-    msg = "missing adapter. This happens when there is no " <>
-          "default adapter configured that implements the " <>
-          "event store behaviour.\n" <>
-          "options: #{inspect opts}"
+    msg =
+      "missing adapter. This happens when there is no " <>
+        "default adapter configured that implements the " <>
+        "event store behaviour.\n" <> "options: #{inspect(opts)}"
+
     %__MODULE__{message: msg}
   end
 end
@@ -16,7 +17,7 @@ defmodule Chronik.AdapterLoadError do
   defexception [:message]
 
   def exception(adapter) do
-    msg = "error loading #{inspect adapter}"
+    msg = "error loading #{inspect(adapter)}"
     %__MODULE__{message: msg}
   end
 end
@@ -26,7 +27,7 @@ defmodule Chronik.MissingConfigError do
   defexception [:message]
 
   def exception(module, key) do
-    msg = "error missing configuration #{inspect key} for module #{module}"
+    msg = "error missing configuration #{inspect(key)} for module #{module}"
     %__MODULE__{message: msg}
   end
 end

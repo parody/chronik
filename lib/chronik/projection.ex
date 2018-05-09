@@ -21,17 +21,16 @@ defmodule Chronik.Projection do
   defmodule CounterState do
     @behaviour Chronik.Projection
 
-    alias DomainEvents.CounterCreated
-    alias DomainEvents.CounterIncremented
+    alias DomainEvents.{CounterCreated, CounterIncremented}
+
     alias Chronik.Projection
 
     def start_link(opts), do: Projection.start_link(__MODULE__, opts)
 
     def init(_opts), do: {nil, []}
 
-    def handle_event(%CounterCreated{}, nil) do
-      0
-    end
+    def handle_event(%CounterCreated{}, nil), do: 0
+
     def handle_event(%CounterIncremented{increment: increment}, value) do
       value + increment
     end
@@ -59,7 +58,7 @@ defmodule Chronik.Projection do
       the `Chronik.PubSub`. Possible values are `:eventual` (default) and
       `:strict`.
   """
-  @callback init(opts :: Keyword.t) :: {state(), Keyword.t}
+  @callback init(opts :: Keyword.t()) :: {state(), Keyword.t()}
 
   @doc """
   The `handle_event` function is executed each time an event record is
@@ -78,11 +77,7 @@ defmodule Chronik.Projection do
 
   alias Chronik.{EventRecord, Config, Utils}
 
-  defstruct [:version,
-             :pub_sub,
-             :store,
-             :projection_state,
-             :projection]
+  defstruct [:version, :pub_sub, :store, :projection_state, :projection]
 
   # API
 
@@ -115,18 +110,21 @@ defmodule Chronik.Projection do
     # First subscribe to the PubSub to start receiving records. Note
     # that as the GenServer is synchronous we won't process any
     # messages until we finish the init function.
-    :ok = pub_sub.subscribe([consistency: consistency])
+    :ok = pub_sub.subscribe(consistency: consistency)
 
     # From the state return by the client code and its version, read
     # from the Store (starting at version) de replay the missing
     # events.
     {state, version} = fetch_and_replay(version, state, projection, store)
 
-    {:ok, %__MODULE__{version: version,
-                      pub_sub: pub_sub,
-                      store: store,
-                      projection_state: state,
-                      projection: projection}}
+    {:ok,
+     %__MODULE__{
+       version: version,
+       pub_sub: pub_sub,
+       store: store,
+       projection_state: state,
+       projection: projection
+     }}
   end
 
   def handle_call(:state, _from, %__MODULE__{projection_state: ps} = state) do
@@ -143,58 +141,63 @@ defmodule Chronik.Projection do
 
   # When configured with eventual consistency the records are
   # delivered as messages processed by the handle_info.
-  def handle_info(%EventRecord{} = e, %__MODULE__{projection: projection,
-                                                  store: store,
-                                                  projection_state: ps,
-                                                  version: version} = state) do
+  def handle_info(
+        %EventRecord{} = e,
+        %__MODULE__{projection: projection, store: store, projection_state: ps, version: version} =
+          state
+      ) do
+    # Use the Store to compare the current version and the version
+    # of the incoming record.
     new_state =
-      # Use the Store to compare the current version and the version
-      # of the incoming record.
       case store.compare_version(version, e.version) do
         # If the record that came from the PubSub is the next_one to
         # the one we last saw, transition to the following state.
         :next_one ->
-          Utils.debug("#{projection} :applying event coming from the PubSub with version #{e.version}")
+          Utils.debug(
+            "#{projection} :applying event coming from the PubSub with version #{e.version}"
+          )
 
           # Update the consumer state applying the record calling the
           # client `handle_event/2` code.
-          %{state | version: e.version,
-                    projection_state: projection.handle_event(e, ps)}
+          %{state | version: e.version, projection_state: projection.handle_event(e, ps)}
+
         :past ->
           # If the version of the event that came from the PubSub is from
           # the past, just ingnore it.
           Utils.debug("#{projection} :discarding event from the past with version #{e.version}")
           state
+
         :equal ->
           # If we already saw this event skip it.
           state
+
         :future ->
           # If the event that came from the PubSub is in the future (BTTF)
           # try to fetch the missing events from the Store and the apply
           # the incoming record.
-          Utils.debug("#{projection} :event(s) coming from the future with version " <>
-                          "#{e.version}. Fetching missing events starting at " <>
-                          "version #{version} from the store.")
+          Utils.debug(
+            "#{projection} :event(s) coming from the future with version " <>
+              "#{e.version}. Fetching missing events starting at " <>
+              "version #{version} from the store."
+          )
 
           # Note that the catch up is a best effort approach since
           # events could still be missing in the Store.
-          {proj_state, new_version} =
-            catch_up(version, ps, projection, store)
+          {proj_state, new_version} = catch_up(version, ps, projection, store)
 
-          %{state | version: new_version,
-                    projection_state: proj_state}
+          %{state | version: new_version, projection_state: proj_state}
       end
 
     {:noreply, new_state}
   end
 
   # Internal functions
+
   defp make_stream_handler(projection_state, version, projection) do
     fn stream ->
-      Enum.reduce(stream, {projection_state, version},
-        fn record, {state, _version} ->
-          {projection.handle_event(record, state), record.version}
-        end)
+      Enum.reduce(stream, {projection_state, version}, fn record, {state, _version} ->
+        {projection.handle_event(record, state), record.version}
+      end)
     end
   end
 
@@ -210,9 +213,13 @@ defmodule Chronik.Projection do
         # There were no events on the Store to catch up.
         Utils.warn("#{projection} :no events found on the Store to do a catch_up")
         {projection_state, :empty}
+
       {new_projection_state, new_version} ->
         # Found some events on the store. Update the projection state.
-        Utils.debug("#{projection} :catching up events from the store starting at version #{version}")
+        Utils.debug(
+          "#{projection} :catching up events from the store starting at version #{version}"
+        )
+
         {new_projection_state, new_version}
     end
   end
@@ -221,6 +228,7 @@ defmodule Chronik.Projection do
   defp fetch_and_replay(:current, projection_state, _projection, store) do
     {projection_state, store.current_version()}
   end
+
   defp fetch_and_replay(version, projection_state, projection, store) do
     from = if version == :empty, do: :all, else: version
 
@@ -230,6 +238,7 @@ defmodule Chronik.Projection do
       {^projection_state, :empty} ->
         Utils.warn("#{projection} :no events found in the store.")
         {projection_state, :empty}
+
       {new_projection_state, new_version} ->
         Utils.debug("#{projection} :re-playing events from version #{version}")
         {new_projection_state, new_version}

@@ -12,12 +12,14 @@ defmodule Chronik.Aggregate.Test do
 
     alias Chronik.Aggregate
     alias Chronik.Aggregate.Test.Counter
+
     alias DomainEvents.{
       CounterCreated,
       CounterIncremented,
       CounterNamed,
       CounterMaxUpdated,
-      CounterDestroyed}
+      CounterDestroyed
+    }
 
     # The aggregate state is just the counter, name and max, value.
     defstruct [
@@ -30,35 +32,39 @@ defmodule Chronik.Aggregate.Test do
     # Public API for the Counter
     def create(id), do: Aggregate.command(__MODULE__, id, {:create, id})
 
-    def increment(id, increment),
-      do: Aggregate.command(__MODULE__, id, {:increment, increment})
+    def increment(id, increment), do: Aggregate.command(__MODULE__, id, {:increment, increment})
 
     def update_name_and_max(id, name, max),
-      do: Aggregate.command(__MODULE__, id,
-        {:update_name_and_max, name, max})
+      do: Aggregate.command(__MODULE__, id, {:update_name_and_max, name, max})
 
-    def destroy(id),
-      do: Aggregate.command(__MODULE__, id, {:destroy})
+    def destroy(id), do: Aggregate.command(__MODULE__, id, {:destroy})
 
     # This is only for debugging purposes
     def state(id), do: Aggregate.state(__MODULE__, id)
 
     # Counter command handlers
+    def handle_command({:create, nil}, nil) do
+      # Return the PID to check that the GenServer is down.
+      raise "#{:erlang.pid_to_list self()}"
+    end
+
     def handle_command({:create, id}, nil) do
       %CounterCreated{id: id, initial_value: 0}
     end
-    def handle_command({:create, id}, _state) do
-       raise "cart #{inspect id} already created"
-    end
-    def handle_command({:increment, increment},
-      %Counter{id: id, max: max, counter: counter})
-      when counter + increment < max do
 
+    def handle_command({:create, id}, _state) do
+      raise "cart #{inspect(id)} already created"
+    end
+
+    def handle_command({:increment, increment}, %Counter{id: id, max: max, counter: counter})
+        when is_integer(increment) and counter + increment < max do
       %CounterIncremented{id: id, increment: increment}
     end
+
     def handle_command({:increment}, state) do
-      raise "cannot increment counter on state #{inspect state}"
+      raise "cannot increment counter on state #{inspect(state)}"
     end
+
     # This is an example of a multi-entity command.
     # It binds the execution of two state changes of two different
     # entities: name and max
@@ -69,18 +75,21 @@ defmodule Chronik.Aggregate.Test do
 
       state
       |> Multi.new(__MODULE__)
-      |> Multi.delegate(&(&1.name), &rename(&1, id, name))
-      |> Multi.delegate(&(&1.max), &update_max(&1, id, max))
+      |> Multi.delegate(& &1.name, &rename(&1, id, name))
+      |> Multi.delegate(& &1.max, &update_max(&1, id, max))
       |> Multi.run()
     end
+
     def handle_command({:update_name_and_max, _name, _max}, state) do
-      raise "cannot update_name_and_max counter on state #{inspect state}"
+      raise "cannot update_name_and_max counter on state #{inspect(state)}"
     end
+
     def handle_command({:destroy}, %Counter{id: id}) do
       %CounterDestroyed{id: id}
     end
+
     def handle_command({:destroy}, state) do
-      raise "cannot destroy counter on state #{inspect state}"
+      raise "cannot destroy counter on state #{inspect(state)}"
     end
 
     # This is the state transition function for the Counter.
@@ -88,17 +97,23 @@ defmodule Chronik.Aggregate.Test do
     def handle_event(%CounterCreated{id: id, initial_value: value}, nil) do
       %Counter{id: id, counter: value, max: 1000}
     end
+
     # We increment the %Counter{}.
-    def handle_event(%CounterIncremented{id: id, increment: increment},
-      %Counter{id: id, counter: counter}) do
+    def handle_event(%CounterIncremented{id: id, increment: increment}, %Counter{
+          id: id,
+          counter: counter
+        }) do
       %Counter{id: id, counter: counter + increment}
     end
+
     def handle_event(%CounterNamed{name: name}, state) do
       put_in(state.name, name)
     end
+
     def handle_event(%CounterMaxUpdated{max: max}, state) do
       put_in(state.max, max)
     end
+
     # When we destroy the counter we go to a invalid state from which
     # we can not transition out.
     def handle_event(%CounterDestroyed{}, %Counter{}) do
@@ -117,13 +132,14 @@ defmodule Chronik.Aggregate.Test do
     defp update_max(old_max, id, max) when max > old_max do
       %CounterMaxUpdated{id: id, max: max}
     end
+
     defp update_max(old_max, id, max) do
       raise "cannot reduce the max from #{old_max} to #{max} for counter #{id}"
     end
   end
 
   test "Double creating an aggregate" do
-    id  = "1"
+    id = "1"
 
     # Check that we can creante an counter aggregate.
     # This test may failed if there is a snapshot or events in the Store.
@@ -170,7 +186,7 @@ defmodule Chronik.Aggregate.Test do
   end
 
   test "Aggregate snapshot and replay of events" do
-    id        = "5"
+    id = "5"
     times = 10
     value = @increment * (times + 1)
 
@@ -179,8 +195,7 @@ defmodule Chronik.Aggregate.Test do
     # The aggregate is configured to save a snapshot every 4 events.
     # So two snapshots should happen here. The last one is only kept in
     # the Store.
-    for _ <- 1..times,
-      do: assert :ok = @aggregate.increment(id, @increment)
+    for _ <- 1..times, do: assert(:ok = @aggregate.increment(id, @increment))
 
     # Take down the aggregate
     pid = aggregate_pid({@aggregate, id})
@@ -202,7 +217,7 @@ defmodule Chronik.Aggregate.Test do
   end
 
   test "Shutdown timeout" do
-    id        = "6"
+    id = "6"
 
     assert :ok = @aggregate.create(id)
     pid = aggregate_pid({@aggregate, id})
@@ -223,12 +238,32 @@ defmodule Chronik.Aggregate.Test do
   end
 
   test "Optmistic concurrency checks" do
-    id        = "7"
+    id = "7"
     {store, _pub_sub} = Chronik.Config.fetch_adapters()
 
     assert :ok = @aggregate.create(id)
-    assert {:ok, _version, _records} = store.append({@aggregate, id},
-      [%DomainEvents.CounterIncremented{id: id, increment: 3}])
+
+    assert {:ok, _version, _records} =
+             store.append({@aggregate, id}, [
+               %DomainEvents.CounterIncremented{id: id, increment: 3}
+             ])
+
     assert {:error, _} = @aggregate.increment(id, 4)
+  end
+
+  test "Stop on fail initial command" do
+    {:error, %RuntimeError{message: pid_st}} = @aggregate.create(nil)
+    pid = pid_st |> String.to_charlist() |> :erlang.list_to_pid()
+    assert false == Process.alive?(pid)
+  end
+
+  test "Fail command on initialized aggregate does not stops the GenServer" do
+    id = "8"
+    :ok = @aggregate.create(id)
+    pid = aggregate_pid({@aggregate, id})
+    assert true == Process.alive?(pid)
+    # Calling increment with a non-integer fails, but keeps the aggreate alive.
+    assert {:error, _} = @aggregate.increment(id, nil)
+    assert true == Process.alive?(pid)
   end
 end
