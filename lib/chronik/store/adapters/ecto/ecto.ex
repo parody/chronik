@@ -4,7 +4,7 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   ## Configuration
 
-  You can configure compression for the aggregate state and domain
+  You can configure compression for the aggregate snapshot and domain
   events only for this adapter. By default both values are at 0
   (compression disabled).
 
