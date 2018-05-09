@@ -10,3 +10,6 @@ config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
   adapter: Ecto.Adapters.MySQL,
   url: {:system, "CHRONIK_REPO_URL", "ecto://root:root@localhost/chronik"}
 
+config :chronik, Chronik.Store.Adapters.Ecto,
+  aggregate_snapshot_compression_level: 1,
+  domain_event_compression_level: 9

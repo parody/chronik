@@ -14,4 +14,3 @@ config :chronik, Chronik.Aggregate.Test.Counter,
 
 config :chronik, Chronik.Store.Test.TestStore,
   adapter: Chronik.Store.Adapters.ETS
-  
