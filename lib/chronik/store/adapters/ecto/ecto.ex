@@ -33,6 +33,8 @@ defmodule Chronik.Store.Adapters.Ecto do
   @aggregate_compression Application.get_env(:chronik, __MODULE__)[:aggregate_compression_level] || 0
   @domain_event_compression Application.get_env(:chronik, __MODULE__)[:domain_event_compression_level] || 0
 
+  @dump_json Application.get_env(:chronik, __MODULE__)[:dump_to_json] || false
+
   # API
 
   def append(aggregate, events, opts \\ [version: :any]) do
@@ -101,6 +103,11 @@ defmodule Chronik.Store.Adapters.Ecto do
   # GenServer callbacks
 
   def init(opts) do
+    json_library =
+      Application.get_env(:chronik, Chronik.Store.Adapters.Ecto)[:json_library] || Jason
+
+    Application.put_env(:ecto, :json_library, json_library)
+
     Repo.start_link(opts)
   end
 
@@ -358,9 +365,13 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp insert_event(record, aggregate_id) do
     json =
-      record.domain_event.__struct__
-      |> Atom.to_string()
-      |> Kernel.<>(Poison.encode!(record.domain_event))
+      if @dump_json do
+        record.domain_event.__struct__
+        |> Atom.to_string()
+        |> Kernel.<>(Jason.encode!(record.domain_event))
+      else
+        nil
+      end
 
     %{
       aggregate_id: aggregate_id,
