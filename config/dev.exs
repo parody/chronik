@@ -12,4 +12,6 @@ config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
 
 config :chronik, Chronik.Store.Adapters.Ecto,
   aggregate_snapshot_compression_level: 1,
-  domain_event_compression_level: 9
+  domain_event_compression_level: 9,
+  json_library: Jason,
+  dump_to_json: false
