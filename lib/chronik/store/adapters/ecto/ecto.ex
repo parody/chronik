@@ -38,15 +38,19 @@ defmodule Chronik.Store.Adapters.Ecto do
   # API
 
   def append(aggregate, events, opts \\ [version: :any]) do
-    GenServer.call(__MODULE__, {:append, aggregate, events, opts})
+    GenServer.call(@name, {:append, aggregate, events, opts})
   end
 
   def snapshot(aggregate, state, version) do
-    GenServer.call(__MODULE__, {:snapshot, aggregate, state, version})
+    GenServer.call(@name, {:snapshot, aggregate, state, version})
   end
 
   def get_snapshot(aggregate) do
-    GenServer.call(__MODULE__, {:get_snapshot, aggregate})
+    GenServer.call(@name, {:get_snapshot, aggregate})
+  end
+
+  def remove_events(aggregate) do
+    GenServer.call(@name, {:remove_events, aggregate})
   end
 
   def fetch_by_aggregate(aggregate, version \\ :all) do
@@ -126,6 +130,18 @@ defmodule Chronik.Store.Adapters.Ecto do
     else
       {:reply, {:error, "wrong expected version"}, state}
     end
+  end
+
+  def handle_call({:remove_events, {aggregate_module, aggregate_id}}, _from, state) do
+    query = from e in DomainEvents,
+            join: a in Aggregate,
+            where: a.id == e.aggregate_id,
+            where: a.aggregate == ^aggregate_module,
+            where: a.aggregate_id == ^aggregate_id
+
+    _ = Repo.delete_all(query)
+
+    {:reply, :ok, state}
   end
 
   # Get the events for a given aggregate starting at version.
@@ -444,7 +460,7 @@ defmodule Chronik.Store.Adapters.Ecto do
     end)
   end
 
-  def domain_event(event, aggregate) do
+  defp domain_event(event, aggregate) do
     :erlang.binary_to_term(event)
   rescue
     _ ->
