@@ -133,13 +133,17 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   def handle_call({:remove_events, {aggregate_module, aggregate_id}}, _from, state) do
-    query = from e in DomainEvents,
-            join: a in Aggregate,
-            where: a.id == e.aggregate_id,
-            where: a.aggregate == ^aggregate_module,
-            where: a.aggregate_id == ^aggregate_id
+    from(e in DomainEvents,
+      join: a in Aggregate,
+      where: a.id == e.aggregate_id,
+      where: a.aggregate == ^aggregate_module,
+      where: a.aggregate_id == ^aggregate_id
+    ) |> Repo.delete_all()
 
-    _ = Repo.delete_all(query)
+    from(a in Aggregate,
+      where: a.aggregate_id == ^aggregate_id,
+      where: a.aggregate == ^aggregate_module
+    ) |> Repo.delete_all()
 
     {:reply, :ok, state}
   end

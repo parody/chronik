@@ -121,7 +121,6 @@ defmodule Chronik.Store.Test do
     assert nil == TestStore.get_snapshot({:test_aggregate, "1"})
 
     assert {:ok, "2", _events} = TestStore.fetch_by_aggregate({:test_aggregate, "2"})
-    assert nil == TestStore.get_snapshot({:test_aggregate, "2"})
 
     # TODO: Ask for these cases
     assert :empty != TestStore.current_version()
