@@ -30,7 +30,8 @@ defmodule Chronik.Aggregate.Test do
     ]
 
     # Public API for the Counter
-    def create(id), do: Aggregate.command(__MODULE__, id, {:create, id})
+    def create(id),
+      do: Aggregate.command(__MODULE__, id, {:create, id})
 
     def increment(id, increment), do: Aggregate.command(__MODULE__, id, {:increment, increment})
 
@@ -57,7 +58,7 @@ defmodule Chronik.Aggregate.Test do
     end
 
     def handle_command({:increment, increment}, %Counter{id: id, max: max, counter: counter})
-        when is_integer(increment) and counter + increment < max do
+        when counter + increment < max do
       %CounterIncremented{id: id, increment: increment}
     end
 
@@ -123,6 +124,7 @@ defmodule Chronik.Aggregate.Test do
     ##
     ## Internal function
     ##
+
     # This is a command validator on the name entity.
     defp rename(_name_state, id, name) do
       %CounterNamed{id: id, name: name}
@@ -166,6 +168,7 @@ defmodule Chronik.Aggregate.Test do
 
   test "Multiple-entity command using Aggregate.Multi" do
     id = "3"
+
     @aggregate.create(id)
 
     # This is a composed command to test the |> operator on executes
@@ -229,14 +232,6 @@ defmodule Chronik.Aggregate.Test do
     assert false == Process.alive?(pid)
   end
 
-  # Get the pid for a given aggregate from the Regsitry.
-  defp aggregate_pid(aggregate) do
-    Chronik.AggregateRegistry
-    |> Registry.lookup(aggregate)
-    |> hd()
-    |> elem(0)
-  end
-
   test "Optmistic concurrency checks" do
     id = "7"
     {store, _pub_sub} = Chronik.Config.fetch_adapters()
@@ -265,5 +260,17 @@ defmodule Chronik.Aggregate.Test do
     # Calling increment with a non-integer fails, but keeps the aggreate alive.
     assert {:error, _} = @aggregate.increment(id, nil)
     assert true == Process.alive?(pid)
+  end
+
+  #
+  # Internal functions
+  #
+
+  # Get the pid for a given aggregate from the Regsitry.
+  defp aggregate_pid(aggregate) do
+    Chronik.AggregateRegistry
+    |> Registry.lookup(aggregate)
+    |> hd()
+    |> elem(0)
   end
 end
