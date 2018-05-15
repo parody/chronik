@@ -96,6 +96,7 @@ defmodule Chronik.Store.Adapters.ETS do
       |> Enum.drop_while(&(&1.aggregate == aggregate))
 
     true = :ets.insert(@table, {:records, events})
+    true = :ets.delete(@snapshot_table, aggregate)
 
     {:reply, :ok, state}
   end
