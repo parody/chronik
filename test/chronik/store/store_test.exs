@@ -122,8 +122,8 @@ defmodule Chronik.Store.Test do
 
     assert {:ok, "2", _events} = TestStore.fetch_by_aggregate({:test_aggregate, "2"})
 
-    # TODO: Ask for these cases
     assert :empty != TestStore.current_version()
+
     assert {:ok, "5", []} = TestStore.fetch("1000")
   end
 end
