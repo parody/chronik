@@ -4,7 +4,7 @@ defmodule Chronik.Store do
   """
 
   @typedoc "The options given for reading events from the stream"
-  @type options :: Keyword.t
+  @type options :: Keyword.t()
 
   @typedoc """
   The version of a given event record in the Store.
@@ -14,7 +14,7 @@ defmodule Chronik.Store do
   """
   @type version :: term() | :empty
 
-  @typep events :: [Chronik.domain_event]
+  @typep events :: [Chronik.domain_event()]
   @typep event_record :: Chronik.EventRecord
   @typep event_records :: [event_record]
 
@@ -43,10 +43,9 @@ defmodule Chronik.Store do
   The return values are `{:ok, last_inserted_version, records}` on
   success or `{:error, message}` in case of failure.
   """
-  @callback append(aggregate :: Chronik.Aggregate,
-                      events :: events(),
-                        opts :: options()) :: {:ok, version(), event_records()}
-                                            | {:error, String.t}
+  @callback append(aggregate :: Chronik.Aggregate, events :: events(), opts :: options()) ::
+              {:ok, version(), event_records()}
+              | {:error, String.t()}
 
   @doc """
   Retrieves all events from the store starting (but not including) at
@@ -62,8 +61,9 @@ defmodule Chronik.Store do
   If no records are found on the stream (starting at version) the
   function returns `{:ok, version, []}`.
   """
-  @callback fetch(version :: version()) :: {:ok, version(), event_records()}
-                                         | {:error, String.t}
+  @callback fetch(version :: version()) ::
+              {:ok, version(), event_records()}
+              | {:error, String.t()}
 
   @doc """
   Retrieves all events from the store for a given aggregate starting
@@ -79,9 +79,9 @@ defmodule Chronik.Store do
   If no records are found on the stream (starting at version) the
   function returns `{:ok, version, []}`.
   """
-  @callback fetch_by_aggregate(aggregate :: Chronik.Aggregate,
-                                 version :: version()) :: {:ok, version(), event_records()}
-                                                        | {:error, String.t}
+  @callback fetch_by_aggregate(aggregate :: Chronik.Aggregate, version :: version()) ::
+              {:ok, version(), event_records()}
+              | {:error, String.t()}
 
   @doc """
   This function allows the Projection module to comapre versions of
@@ -91,19 +91,26 @@ defmodule Chronik.Store do
   implementation is to compare the integers and return the
   corresponding atoms.
   """
-  @callback compare_version(version :: version(), version :: version()) :: :past
-                                                                         | :next_one
-                                                                         | :future
-                                                                         | :equal
+  @callback compare_version(version :: version(), version :: version()) ::
+              :past
+              | :next_one
+              | :future
+              | :equal
 
   @doc """
   This function creates a snapshot in the store for the given
   `aggregate`. The Store only stores the last snapshot.
   """
-  @callback snapshot(aggregate :: Chronik.Aggregate,
-                         state :: Chronik.Aggregate.state,
-                       version :: version()) :: :ok
-                                              | {:error, reason() :: String.t}
+  @callback snapshot(
+              aggregate :: Chronik.Aggregate,
+              state :: Chronik.Aggregate.state(),
+              version :: version()
+            ) ::
+              :ok
+              | {:error, reason() :: String.t()}
+
+  @doc "Remove all events for given `aggregate`"
+  @callback remove_events(aggregate :: Chronik.Aggregate) :: :ok
 
   @doc """
   Retrives a snapshot from the Store. If there is no snapshot it
@@ -113,7 +120,7 @@ defmodule Chronik.Store do
   `{version, state}` indicating the state of the snapshot and with
   wich version of the aggregate was created.
   """
-  @callback get_snapshot(aggregate :: Chronik.Aggregate) :: {version(), Chronik.Aggregate.state}
+  @callback get_snapshot(aggregate :: Chronik.Aggregate) :: {version(), Chronik.Aggregate.state()}
 
   @doc """
   Retrives the current version of the store. If there are no record returns :empty.
@@ -124,16 +131,17 @@ defmodule Chronik.Store do
   Calls the `fun` function over a stream of domain events starting at version
   `version`.
   """
-  @callback stream(fun :: (event_record() , any() -> any()),
-                   version :: version()) :: any()
+  @callback stream(fun :: (event_record(), any() -> any()), version :: version()) :: any()
 
   @doc """
   Calls the `fun` function over the `aggregate`'s domain event stream
   starting at version `version`.
   """
-  @callback stream_by_aggregate(aggregate :: Chronik.Aggregate,
-                                      fun :: (event_record() , any() -> any()),
-                                  version :: version()) :: any()
+  @callback stream_by_aggregate(
+              aggregate :: Chronik.Aggregate,
+              fun :: (event_record(), any() -> any()),
+              version :: version()
+            ) :: any()
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
@@ -152,6 +160,7 @@ defmodule Chronik.Store do
       defdelegate get_snapshot(aggregate), to: @adapter
       defdelegate fetch(version \\ :all), to: @adapter
       defdelegate fetch_by_aggregate(aggregate, version \\ :all), to: @adapter
+      defdelegate remove_events(aggregate), to: @adapter
       defdelegate stream(fun, version \\ :all), to: @adapter
       defdelegate stream_by_aggregate(aggregate, fun, version \\ :all), to: @adapter
       defdelegate compare_version(version1, version2), to: @adapter

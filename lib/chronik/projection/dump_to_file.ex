@@ -6,7 +6,7 @@ defmodule Chronik.Projection.DumpToFile do
   and start it as any projection.
   """
 
-  defmacro __using__([filename: filename]) do
+  defmacro __using__(filename: filename) do
     quote do
       @behaviour Chronik.Projection
 
@@ -20,7 +20,7 @@ defmodule Chronik.Projection.DumpToFile do
       end
 
       def handle_event(%EventRecord{domain_event: event}, filename) do
-        :ok = File.write(filename, "[#{__MODULE__}] #{inspect event}\n", [:append])
+        :ok = File.write(filename, "[#{__MODULE__}] #{inspect(event)}\n", [:append])
         filename
       end
     end

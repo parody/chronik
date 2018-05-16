@@ -1,4 +1,4 @@
-  defmodule Chronik.PubSub do
+defmodule Chronik.PubSub do
   @moduledoc """
   `Chronik.PubSub` adapter contract and API.
 
@@ -25,7 +25,7 @@
   end
 
   @typedoc "The result status of all operations on the `Chronik.PubSub`"
-  @type result_status :: :ok | {:error, String.t}
+  @type result_status :: :ok | {:error, String.t()}
 
   @doc """
   Subscribes the caller to the PubSub.
@@ -37,7 +37,7 @@
 
     - `consistency`: `:eventual` (default) or `:strict`
   """
-  @callback subscribe(opts :: Keyword.t) :: result_status()
+  @callback subscribe(opts :: Keyword.t()) :: result_status()
 
   @doc """
   Unsubscribes the caller from the PubSub. No further events are

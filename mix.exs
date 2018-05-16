@@ -1,14 +1,14 @@
 defmodule Chronik.Mixfile do
   use Mix.Project
 
-  @version "0.1.9"
+  @version "0.1.10"
 
   def project do
     [
       app: :chronik,
       version: @version,
       elixir: "~> 1.6",
-      start_permanent: Mix.env == :prod,
+      start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [coveralls: :test],
       docs: docs(),
@@ -36,9 +36,10 @@ defmodule Chronik.Mixfile do
 
   defp docs do
     [
-      source_ref: "v#{@version}", main: "Chronik",
+      source_ref: "v#{@version}",
+      main: "Chronik",
       canonical: "http://hexdocs.pm/chronik",
-      source_url: "https://github.com/parody/chronik",
+      source_url: "https://github.com/parody/chronik"
     ]
   end
 
@@ -47,8 +48,7 @@ defmodule Chronik.Mixfile do
       maintainers: ["Cristian Rosa", "Federico Bergero", "Ricardo Lanziano"],
       licenses: [],
       links: %{"GitHub" => "https://github.com/parody/chronik"},
-      files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++
-             ~w(LICENSE TODO.md)
+      files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++ ~w(LICENSE TODO.md)
     ]
   end
 
@@ -63,7 +63,7 @@ defmodule Chronik.Mixfile do
       # For Ecto-MySQL store
       {:ecto, "~> 2.1"},
       {:mariaex, "~> 0.8.2"},
-      {:poison, "~> 3.1.0"},
+      {:jason, "~> 1.0.0"},
       {:confex, "~> 3.2.3"}
     ]
   end
