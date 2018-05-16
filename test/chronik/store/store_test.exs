@@ -80,7 +80,7 @@ defmodule Chronik.Store.Test do
     assert {:ok, _version, [%{domain_event: %CounterIncremented{id: "3", increment: 3}}]} =
              TestStore.fetch_by_aggregate(aggregate, version)
 
-    # Fecth all stored records and keep the data field
+    # Fetch all stored records and keep the data field
     data_list =
       aggregate
       |> TestStore.fetch_by_aggregate()
@@ -113,5 +113,17 @@ defmodule Chronik.Store.Test do
     end
 
     assert 0 < TestStore.stream(f)
+
+    # Event removal
+
+    assert :ok = TestStore.remove_events({:test_aggregate, "1"})
+    assert {:ok, :empty, []} = TestStore.fetch_by_aggregate({:test_aggregate, "1"})
+    assert nil == TestStore.get_snapshot({:test_aggregate, "1"})
+
+    assert {:ok, "2", _events} = TestStore.fetch_by_aggregate({:test_aggregate, "2"})
+
+    assert :empty != TestStore.current_version()
+
+    assert {:ok, "5", []} = TestStore.fetch("1000")
   end
 end

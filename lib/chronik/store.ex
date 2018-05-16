@@ -109,6 +109,9 @@ defmodule Chronik.Store do
               :ok
               | {:error, reason() :: String.t()}
 
+  @doc "Remove all events for given `aggregate`"
+  @callback remove_events(aggregate :: Chronik.Aggregate) :: :ok
+
   @doc """
   Retrives a snapshot from the Store. If there is no snapshot it
   returns `nil`.
@@ -157,6 +160,7 @@ defmodule Chronik.Store do
       defdelegate get_snapshot(aggregate), to: @adapter
       defdelegate fetch(version \\ :all), to: @adapter
       defdelegate fetch_by_aggregate(aggregate, version \\ :all), to: @adapter
+      defdelegate remove_events(aggregate), to: @adapter
       defdelegate stream(fun, version \\ :all), to: @adapter
       defdelegate stream_by_aggregate(aggregate, fun, version \\ :all), to: @adapter
       defdelegate compare_version(version1, version2), to: @adapter

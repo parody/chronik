@@ -33,6 +33,10 @@ defmodule Chronik.Store.Adapters.ETS do
     GenServer.call(@name, {:get_snapshot, aggregate})
   end
 
+  def remove_events(aggregate) do
+    GenServer.call(@name, {:remove_events, aggregate})
+  end
+
   def fetch_by_aggregate(aggregate, version \\ :all) do
     GenServer.call(@name, {:fetch_by_aggregate, aggregate, version})
   end
@@ -84,6 +88,17 @@ defmodule Chronik.Store.Adapters.ETS do
     {:ok, nil}
   rescue
     _ -> {:stop, {:error, "event store already started"}}
+  end
+
+  def handle_call({:remove_events, aggregate}, _from, state) do
+    events =
+      current_records()
+      |> Enum.drop_while(&(&1.aggregate == aggregate))
+
+    true = :ets.insert(@table, {:records, events})
+    true = :ets.delete(@snapshot_table, aggregate)
+
+    {:reply, :ok, state}
   end
 
   def handle_call(:current_version, _from, state) do
