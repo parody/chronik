@@ -48,7 +48,7 @@ defmodule Chronik.Mixfile do
       maintainers: ["Cristian Rosa", "Federico Bergero", "Ricardo Lanziano"],
       licenses: [],
       links: %{"GitHub" => "https://github.com/parody/chronik"},
-      files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++ ~w(LICENSE TODO.md)
+      files: ~w(mix.exs README.md CHANGELOG.md lib priv config example) ++ ~w(LICENSE)
     ]
   end
 
