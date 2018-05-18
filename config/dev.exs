@@ -11,7 +11,7 @@ config :chronik, Chronik.Store.Adapters.Ecto.ChronikRepo,
   url: {:system, "CHRONIK_REPO_URL", "ecto://root:root@localhost/chronik"}
 
 config :chronik, Chronik.Store.Adapters.Ecto,
-  aggregate_snapshot_compression_level: 1,
+  aggregate_compression_level: 1,
   domain_event_compression_level: 9,
   json_library: Jason,
   dump_to_json: false
