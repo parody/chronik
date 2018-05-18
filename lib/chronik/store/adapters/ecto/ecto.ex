@@ -12,6 +12,13 @@ defmodule Chronik.Store.Adapters.Ecto do
   - `:domain_event_compression_level`
 
   Both accept an integer from 0 to 9, being 9 the highest compression.
+
+  You can also specify the JSON serializer module to use:
+
+  - `:json_library`
+
+  Finally, you can disable JSON serialization with the `:dump_to_json`
+  flag.
   """
 
   @behaviour Chronik.Store
@@ -35,7 +42,9 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   @dump_json Application.get_env(:chronik, __MODULE__)[:dump_to_json] || false
 
+  #
   # API
+  #
 
   def append(aggregate, events, opts \\ [version: :any]) do
     GenServer.call(@name, {:append, aggregate, events, opts})
@@ -104,7 +113,9 @@ defmodule Chronik.Store.Adapters.Ecto do
     GenServer.start_link(__MODULE__, opts, name: @name)
   end
 
+  #
   # GenServer callbacks
+  #
 
   def init(opts) do
     json_library =
@@ -346,7 +357,9 @@ defmodule Chronik.Store.Adapters.Ecto do
     {:reply, ret, state}
   end
 
+  #
   # Internal functions
+  #
 
   defp get_aggregate({aggregate, id}) do
     case Repo.get_by(Aggregate, aggregate: aggregate, aggregate_id: id) do
