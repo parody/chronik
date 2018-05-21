@@ -285,7 +285,8 @@ defmodule Chronik.Store.Adapters.Ecto do
       domain_event(row.domain_event, row.aggregate),
       row.aggregate,
       "#{row.version}",
-      "#{row.aggregate_version}")
+      "#{row.aggregate_version}",
+      row.created)
   end
 
   defp aggregate_table_id(aggregate) do
@@ -315,7 +316,7 @@ defmodule Chronik.Store.Adapters.Ecto do
       domain_event_json: json,
       aggregate_version: String.to_integer(record.aggregate_version),
       version: String.to_integer(record.version),
-      created: record.created_at |> from_timestamp() |> DateTime.from_erl()
+      created: record.created_at
     }
   end
 

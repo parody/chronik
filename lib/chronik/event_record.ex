@@ -26,10 +26,11 @@ defmodule Chronik.EventRecord do
   @spec create(domain_event :: Chronik.domain_event(),
                   aggregate :: Chronik.Aggregate.t(),
                     version :: Chronik.Store.version(),
-          aggregate_version :: Chronik.Store.version()) :: __MODULE__.t
-  def create(domain_event, aggregate, version, aggregate_version) do
+          aggregate_version :: Chronik.Store.version(),
+                 created_at :: non_neg_integer()) :: __MODULE__.t
+  def create(domain_event, aggregate, version, aggregate_version, created_at \\ nil) do
     %__MODULE__{
-      created_at: System.system_time(:seconds),
+      created_at: created_at || NaiveDateTime.utc_now(),
       domain_event: domain_event,
       aggregate: aggregate,
       version: version,
