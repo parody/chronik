@@ -211,7 +211,7 @@ defmodule Chronik.Projection do
     case store.stream(stream_handler, from) do
       {^projection_state, :empty} ->
         # There were no events on the Store to catch up.
-        Utils.warn("#{projection} :no events found on the Store to do a catch_up")
+        Utils.warn("#{projection} :no events found on the store to do a catch_up")
         {projection_state, :empty}
 
       {new_projection_state, new_version} ->

@@ -15,7 +15,9 @@ defmodule Chronik.Store.Adapters.ETS do
   @table Module.concat(__MODULE__, Table)
   @snapshot_table Module.concat(__MODULE__, SnapshotTable)
 
+  #
   # API
+  #
 
   def append(aggregate, events, opts \\ [version: :any]) do
     GenServer.call(@name, {:append, aggregate, events, opts})
@@ -65,7 +67,9 @@ defmodule Chronik.Store.Adapters.ETS do
     wrapper_fn.(fun)
   end
 
+  #
   # GenServer callbacks
+  #
 
   def child_spec(_store, opts) do
     %{
@@ -235,7 +239,9 @@ defmodule Chronik.Store.Adapters.ETS do
     end
   end
 
+  #
   # Internal functions
+  #
 
   defp current_records do
     case :ets.lookup(@table, :records) do

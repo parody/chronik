@@ -109,7 +109,9 @@ defmodule Chronik.Store do
               :ok
               | {:error, reason() :: String.t()}
 
-  @doc "Remove all events for given `aggregate`"
+  @doc """
+  Remove all events for given `aggregate` and it's current snapshot
+  """
   @callback remove_events(aggregate :: Chronik.Aggregate) :: :ok
 
   @doc """
