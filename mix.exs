@@ -55,15 +55,15 @@ defmodule Chronik.Mixfile do
   defp deps do
     [
       # Development
-      {:ex_doc, "> 0.0.0", only: :dev},
-      {:dialyxir, "> 0.0.0", only: :dev},
-      {:excoveralls, "> 0.0.0", only: :test},
-      {:credo, "> 0.0.0", only: :dev},
+      {:ex_doc, "~> 0.19", only: :doc},
+      {:dialyxir, "~> 1.0.0-rc.3", only: :dev},
+      {:excoveralls, "~> 0.10", only: :test},
+      {:credo, "~> 0.10", only: :dev},
 
       # For Ecto-MySQL store
       {:ecto, "~> 2.1"},
       {:mariaex, "~> 0.8.2"},
-      {:jason, "~> 1.0.0"},
+      {:jason, "~> 1.1"},
       {:confex, "~> 3.2.3"}
     ]
   end
