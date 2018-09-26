@@ -1,7 +1,7 @@
 # Chronik
 
 [![Build Status](https://travis-ci.org/parody/chronik.svg?branch=master)](https://travis-ci.org/parody/chronik)
-[![Inline docs](http://inch-ci.org/github/parody/chronik.svg?branch=chores/fb-add-badges)](http://inch-ci.org/github/parody/chronik)
+[![Inline docs](http://inch-ci.org/github/parody/chronik.svg?branch=develop)](http://inch-ci.org/github/parody/chronik)
 
 A lightweight event sourcing micro framework for Elixir.
 
