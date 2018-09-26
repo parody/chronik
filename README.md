@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/parody/chronik.svg?branch=master)](https://travis-ci.org/parody/chronik)
 [![Inline docs](http://inch-ci.org/github/parody/chronik.svg?branch=develop)](http://inch-ci.org/github/parody/chronik)
+[![hex.pm version](https://img.shields.io/hexpm/v/chronik.svg)](https://hex.pm/packages/chronik)
+[![hex.pm downloads](https://img.shields.io/hexpm/dt/chronik.svg)](https://hex.pm/packages/chronik)
 
 A lightweight event sourcing micro framework for Elixir.
 
