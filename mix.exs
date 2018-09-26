@@ -64,7 +64,10 @@ defmodule Chronik.Mixfile do
       {:ecto, "~> 2.1"},
       {:mariaex, "~> 0.8.2"},
       {:jason, "~> 1.1"},
-      {:confex, "~> 3.2.3"}
+      {:confex, "~> 3.2.3"},
+
+       # For doc badge
+       {:inch_ex, only: :docs}
     ]
   end
 end
