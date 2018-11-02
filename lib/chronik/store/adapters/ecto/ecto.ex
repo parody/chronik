@@ -1,5 +1,18 @@
 defmodule Chronik.Store.Adapters.Ecto do
-  @moduledoc false
+  @moduledoc """
+  Ecto adapter for `Chronik.Store`
+
+  ## Configuration
+
+  You can configure compression for the aggregate snapshot and domain
+  events only for this adapter. By default both values are at 0
+  (compression disabled).
+
+  - `:aggregate_compression_level`
+  - `:domain_event_compression_level`
+
+  Both accept an integer from 0 to 9, being 9 the highest compression.
+  """
 
   @behaviour Chronik.Store
 
@@ -17,18 +30,30 @@ defmodule Chronik.Store.Adapters.Ecto do
   @name __MODULE__
   @epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
 
+  @aggregate_compression Application.get_env(:chronik, __MODULE__)[:aggregate_compression_level] ||
+                           0
+  @domain_event_compression Application.get_env(:chronik, __MODULE__)[
+                              :domain_event_compression_level
+                            ] || 0
+
+  @dump_json Application.get_env(:chronik, __MODULE__)[:dump_to_json] || false
+
   # API
 
   def append(aggregate, events, opts \\ [version: :any]) do
-    GenServer.call(__MODULE__, {:append, aggregate, events, opts})
+    GenServer.call(@name, {:append, aggregate, events, opts})
   end
 
   def snapshot(aggregate, state, version) do
-    GenServer.call(__MODULE__, {:snapshot, aggregate, state, version})
+    GenServer.call(@name, {:snapshot, aggregate, state, version})
   end
 
   def get_snapshot(aggregate) do
-    GenServer.call(__MODULE__, {:get_snapshot, aggregate})
+    GenServer.call(@name, {:get_snapshot, aggregate})
+  end
+
+  def remove_events(aggregate) do
+    GenServer.call(@name, {:remove_events, aggregate})
   end
 
   def fetch_by_aggregate(aggregate, version \\ :all) do
@@ -40,7 +65,9 @@ defmodule Chronik.Store.Adapters.Ecto do
   end
 
   def compare_version(a, a), do: :equal
+
   def compare_version(:empty, "0"), do: :next_one
+
   def compare_version(a, b) when is_bitstring(a) and is_bitstring(b) do
     case {String.to_integer(a), String.to_integer(b)} do
       {v1, v2} when v2 == v1 + 1 -> :next_one
@@ -48,15 +75,15 @@ defmodule Chronik.Store.Adapters.Ecto do
       {v1, v2} when v2 < v1 -> :past
     end
   end
+
   def compare_version(a, :empty) when is_number(a), do: :past
+
   def compare_version(_, _), do: :error
 
   def current_version(), do: GenServer.call(@name, :current_version)
 
-
   def stream_by_aggregate(aggregate, fun, version \\ :all) do
-    transaction =
-      GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
+    transaction = GenServer.call(@name, {:stream_by_aggregate, aggregate, version})
     {:ok, result} = transaction.(fun)
     result
   end
@@ -83,60 +110,95 @@ defmodule Chronik.Store.Adapters.Ecto do
   # GenServer callbacks
 
   def init(opts) do
+    json_library =
+      Application.get_env(:chronik, Chronik.Store.Adapters.Ecto)[:json_library] || Jason
+
+    Application.put_env(:ecto, :json_library, json_library)
+
     Repo.start_link(opts)
   end
 
   def handle_call(:current_version, _from, state) do
     {:reply, store_version(), state}
   end
+
   # Write the events to the DB.
   def handle_call({:append, aggregate, events, opts}, _from, state) do
     aggregate_version = aggregate_version(aggregate)
     version = Keyword.get(opts, :version)
-    if (version == :no_stream and aggregate_version == :empty) or
-       (version == :any) or
-       (is_bitstring(version) and version == aggregate_version) do
-          {:reply, do_append(aggregate, events), state}
+
+    if (version == :no_stream and aggregate_version == :empty) or version == :any or
+         (is_bitstring(version) and version == aggregate_version) do
+      {:reply, do_append(aggregate, events), state}
     else
       {:reply, {:error, "wrong expected version"}, state}
     end
   end
-  # Get the events for a given aggregate starting at version.
-  def handle_call({:fetch_by_aggregate,
-    {aggregate_module, aggregate_id} = aggregate, version}, _from, state) do
 
+  def handle_call({:remove_events, {aggregate_module, aggregate_id}}, _from, state) do
+    from(e in DomainEvents,
+      join: a in Aggregate,
+      where: a.id == e.aggregate_id,
+      where: a.aggregate == ^aggregate_module,
+      where: a.aggregate_id == ^aggregate_id
+    )
+    |> Repo.delete_all()
+
+    from(a in Aggregate,
+      where: a.aggregate_id == ^aggregate_id,
+      where: a.aggregate == ^aggregate_module
+    )
+    |> Repo.delete_all()
+
+    {:reply, :ok, state}
+  end
+
+  # Get the events for a given aggregate starting at version.
+  def handle_call(
+        {:fetch_by_aggregate, {aggregate_module, aggregate_id} = aggregate, version},
+        _from,
+        state
+      ) do
     starting_at =
       case version do
         :all -> -1
         v -> String.to_integer(v)
       end
 
-    query = from e in DomainEvents,
-            join: a in Aggregate,
-            where: a.id == e.aggregate_id,
-            where: a.aggregate == ^aggregate_module,
-            where: a.aggregate_id == ^aggregate_id,
-            where: e.aggregate_version > ^starting_at,
-            order_by: e.aggregate_version,
-            select: %{
-                      version: e.version,
-                      aggregate: {a.aggregate, a.aggregate_id},
-                      domain_event: e.domain_event,
-                      aggregate_version: e.aggregate_version,
-                      created: e.created
-                    }
+    query =
+      from(
+        e in DomainEvents,
+        join: a in Aggregate,
+        where: a.id == e.aggregate_id,
+        where: a.aggregate == ^aggregate_module,
+        where: a.aggregate_id == ^aggregate_id,
+        where: e.aggregate_version > ^starting_at,
+        order_by: e.aggregate_version,
+        select: %{
+          version: e.version,
+          aggregate: {a.aggregate, a.aggregate_id},
+          domain_event: e.domain_event,
+          aggregate_version: e.aggregate_version,
+          created: e.created
+        }
+      )
 
     case Repo.all(query) do
-      [] -> {:reply, {:ok, aggregate_version(aggregate), []}, state}
+      [] ->
+        {:reply, {:ok, aggregate_version(aggregate), []}, state}
+
       rows ->
         records = Enum.map(rows, &build_record/1)
+
         version =
           records
           |> List.last()
           |> Map.get(:aggregate_version)
+
         {:reply, {:ok, version, records}, state}
     end
   end
+
   # Fetch all the events from the all-stream starting at version.
   def handle_call({:fetch, version}, _from, state) do
     starting_at =
@@ -145,64 +207,81 @@ defmodule Chronik.Store.Adapters.Ecto do
         v -> String.to_integer(v)
       end
 
-    query = from e in DomainEvents,
-            join: a in Aggregate,
-            where: a.id == e.aggregate_id,
-            where: e.version > ^starting_at,
-            order_by: e.version,
-            select: %{
-                      version: e.version,
-                      aggregate: {a.aggregate, a.aggregate_id},
-                      domain_event: e.domain_event,
-                      aggregate_version: e.aggregate_version,
-                      created: e.created
-                    }
+    query =
+      from(
+        e in DomainEvents,
+        join: a in Aggregate,
+        where: a.id == e.aggregate_id,
+        where: e.version > ^starting_at,
+        order_by: e.version,
+        select: %{
+          version: e.version,
+          aggregate: {a.aggregate, a.aggregate_id},
+          domain_event: e.domain_event,
+          aggregate_version: e.aggregate_version,
+          created: e.created
+        }
+      )
 
     case Repo.all(query) do
-      [] -> {:reply, {:ok, store_version(), []}, state}
+      [] ->
+        {:reply, {:ok, store_version(), []}, state}
+
       rows ->
         records = Enum.map(rows, &build_record/1)
+
         version =
           records
           |> List.last()
           |> Map.get(:version)
+
         {:reply, {:ok, version, records}, state}
     end
   end
-  # Take a snapshot and write it to the DB.
-  def handle_call({:snapshot, {aggregate, id},
-    aggregate_state, version}, _from, state) do
 
+  # Take a snapshot and write it to the DB.
+  def handle_call({:snapshot, {aggregate, id}, aggregate_state, version}, _from, state) do
     Aggregate
     |> where(aggregate: ^aggregate)
     |> where(aggregate_id: ^id)
     |> Repo.update_all(
-      set: [snapshot_version: version,
-            snapshot: :erlang.term_to_binary(aggregate_state)])
+      set: [
+        snapshot_version: version,
+        snapshot: :erlang.term_to_binary(aggregate_state, compressed: @aggregate_compression)
+      ]
+    )
 
     {:reply, :ok, state}
   end
+
   def handle_call({:get_snapshot, {aggregate, id}}, _from, state) do
     query =
-      from a in Aggregate,
-      where: a.aggregate == ^aggregate,
-      where: a.aggregate_id == ^id,
-      where: not is_nil(a.snapshot_version)
+      from(
+        a in Aggregate,
+        where: a.aggregate == ^aggregate,
+        where: a.aggregate_id == ^id,
+        where: not is_nil(a.snapshot_version)
+      )
 
     case Repo.one(query) do
-      nil -> {:reply, nil, state}
+      nil ->
+        {:reply, nil, state}
+
       %Aggregate{snapshot_version: version, snapshot: snapshot} ->
         try do
           {:reply, {"#{version}", :erlang.binary_to_term(snapshot)}, state}
         rescue
           _ ->
-            Logger.error("could not load the snapshot for " <>
-              "#{inspect {aggregate, id}} from the " <>
-              "store. Possible data corruption.")
+            Logger.error(
+              "could not load the snapshot for " <>
+                "#{inspect({aggregate, id})} from the " <> "store. Possible data corruption."
+            )
+
             {:reply, nil, state}
         end
     end
   end
+
   def handle_call({:stream, version}, _from, state) do
     starting_at =
       case version do
@@ -210,69 +289,73 @@ defmodule Chronik.Store.Adapters.Ecto do
         v -> String.to_integer(v)
       end
 
-    query = from e in DomainEvents,
-            join: a in Aggregate,
-            where: a.id == e.aggregate_id,
-            where: e.version > ^starting_at,
-            order_by: e.version,
-            select: %{
-                      version: e.version,
-                      aggregate: {a.aggregate, a.aggregate_id},
-                      domain_event: e.domain_event,
-                      aggregate_version: e.aggregate_version,
-                      created: e.created
-                    }
+    query =
+      from(
+        e in DomainEvents,
+        join: a in Aggregate,
+        where: a.id == e.aggregate_id,
+        where: e.version > ^starting_at,
+        order_by: e.version,
+        select: %{
+          version: e.version,
+          aggregate: {a.aggregate, a.aggregate_id},
+          domain_event: e.domain_event,
+          aggregate_version: e.aggregate_version,
+          created: e.created
+        }
+      )
 
-    ret =
-      fn fun ->
-        Repo.transaction(fn() ->
-          query
-          |> Repo.stream()
-          |> Stream.map(&build_record/1)
-          |> fun.()
-        end)
-      end
+    ret = fn fun ->
+      Repo.transaction(fn ->
+        query
+        |> Repo.stream()
+        |> Stream.map(&build_record/1)
+        |> fun.()
+      end)
+    end
 
     {:reply, ret, state}
   end
-  def handle_call({:stream_by_aggregate,
-    {aggregate_module, aggregate_id}, version}, _from, state) do
 
+  def handle_call({:stream_by_aggregate, {aggregate_module, aggregate_id}, version}, _from, state) do
     starting_at =
       case version do
         :all -> -1
         v -> String.to_integer(v)
       end
 
-    query = from e in DomainEvents,
-            join: a in Aggregate,
-            where: a.id == e.aggregate_id,
-            where: a.aggregate == ^aggregate_module,
-            where: a.aggregate_id == ^aggregate_id,
-            where: e.aggregate_version > ^starting_at,
-            order_by: e.aggregate_version,
-            select: %{
-                      version: e.version,
-                      aggregate: {a.aggregate, a.aggregate_id},
-                      domain_event: e.domain_event,
-                      aggregate_version: e.aggregate_version,
-                      created: e.created
-                    }
+    query =
+      from(
+        e in DomainEvents,
+        join: a in Aggregate,
+        where: a.id == e.aggregate_id,
+        where: a.aggregate == ^aggregate_module,
+        where: a.aggregate_id == ^aggregate_id,
+        where: e.aggregate_version > ^starting_at,
+        order_by: e.aggregate_version,
+        select: %{
+          version: e.version,
+          aggregate: {a.aggregate, a.aggregate_id},
+          domain_event: e.domain_event,
+          aggregate_version: e.aggregate_version,
+          created: e.created
+        }
+      )
 
-    ret =
-      fn fun ->
-        Repo.transaction(fn() ->
-          query
-          |> Repo.stream()
-          |> Stream.map(&build_record/1)
-          |> fun.()
-        end)
-      end
+    ret = fn fun ->
+      Repo.transaction(fn ->
+        query
+        |> Repo.stream()
+        |> Stream.map(&build_record/1)
+        |> fun.()
+      end)
+    end
 
     {:reply, ret, state}
   end
 
   # Internal functions
+
   defp get_aggregate({aggregate, id}) do
     case Repo.get_by(Aggregate, aggregate: aggregate, aggregate_id: id) do
       nil -> %Aggregate{aggregate: aggregate, aggregate_id: id}
@@ -286,7 +369,8 @@ defmodule Chronik.Store.Adapters.Ecto do
       row.aggregate,
       "#{row.version}",
       "#{row.aggregate_version}",
-      row.created)
+      row.created
+    )
   end
 
   defp aggregate_table_id(aggregate) do
@@ -299,20 +383,29 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp do_append(aggregate, events) do
     {records, _version, aggregate_version} = from_enum(events, aggregate)
-    Repo.insert_all(DomainEvents,
-      Enum.map(records, &insert_event(&1, aggregate_table_id(aggregate))))
+
+    Repo.insert_all(
+      DomainEvents,
+      Enum.map(records, &insert_event(&1, aggregate_table_id(aggregate)))
+    )
+
     {:ok, aggregate_version, records}
   end
 
   defp insert_event(record, aggregate_id) do
     json =
-      record.domain_event.__struct__
-      |> Atom.to_string()
-      |> Kernel.<>(Poison.encode!(record.domain_event))
+      if @dump_json do
+        record.domain_event.__struct__
+        |> Atom.to_string()
+        |> Kernel.<>(Jason.encode!(record.domain_event))
+      else
+        nil
+      end
 
     %{
       aggregate_id: aggregate_id,
-      domain_event: :erlang.term_to_binary(record.domain_event),
+      domain_event:
+        :erlang.term_to_binary(record.domain_event, compressed: @domain_event_compression),
       domain_event_json: json,
       aggregate_version: String.to_integer(record.aggregate_version),
       version: String.to_integer(record.version),
@@ -329,10 +422,12 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp store_version do
     query =
-      from e in DomainEvents,
-      select: e.version,
-      order_by: [desc: e.version],
-      limit: 1
+      from(
+        e in DomainEvents,
+        select: e.version,
+        order_by: [desc: e.version],
+        limit: 1
+      )
 
     case Repo.one(query) do
       nil -> :empty
@@ -342,7 +437,8 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp aggregate_version({aggregate_module, aggregate_id}) do
     query =
-      from e in DomainEvents,
+      from(
+        e in DomainEvents,
         join: a in Aggregate,
         where: e.aggregate_id == a.id,
         where: a.aggregate == ^aggregate_module,
@@ -350,6 +446,7 @@ defmodule Chronik.Store.Adapters.Ecto do
         order_by: [desc: e.aggregate_version],
         select: e.aggregate_version,
         limit: 1
+      )
 
     case Repo.one(query) do
       nil -> :empty
@@ -365,25 +462,27 @@ defmodule Chronik.Store.Adapters.Ecto do
 
   defp from_enum(events, aggregate) do
     events
-    |> Enum.reduce({[], store_version(), aggregate_version(aggregate)},
-      fn e, {records, st_version, agg_version} ->
-        {
-          records ++
-          [EventRecord.create(e, aggregate, next_version(st_version),
-            next_version(agg_version))],
-          next_version(st_version),
-          next_version(agg_version)
-        }
-      end)
+    |> Enum.reduce({[], store_version(), aggregate_version(aggregate)}, fn e,
+                                                                           {records, st_version,
+                                                                            agg_version} ->
+      {
+        records ++
+          [EventRecord.create(e, aggregate, next_version(st_version), next_version(agg_version))],
+        next_version(st_version),
+        next_version(agg_version)
+      }
+    end)
   end
 
-  def domain_event(event, aggregate) do
+  defp domain_event(event, aggregate) do
     :erlang.binary_to_term(event)
   rescue
     _ ->
-      Logger.error("could not load some events for " <>
-                      "#{inspect aggregate} from the " <>
-                      "store. Possible data corruption.")
+      Logger.error(
+        "could not load some events for " <>
+          "#{inspect(aggregate)} from the " <> "store. Possible data corruption."
+      )
+
       nil
   end
 end

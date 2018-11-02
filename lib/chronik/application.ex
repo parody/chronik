@@ -8,7 +8,7 @@ defmodule Chronik.Application do
   def start(_type, _args) do
     children = [
       spec([keys: :unique, name: @aggregates], @aggregates),
-      Chronik.Aggregate.Supervisor,
+      Chronik.Aggregate.Supervisor
     ]
 
     opts = [strategy: :one_for_one, name: Chronik.Supervisor]

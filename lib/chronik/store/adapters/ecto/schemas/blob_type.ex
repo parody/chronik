@@ -1,5 +1,6 @@
 defmodule Chronik.Store.Adapters.Ecto.Blob do
   @moduledoc false
+
   @behaviour Ecto.Type
 
   alias Chronik.Store.Adapters.Ecto.ChronikRepo
@@ -7,13 +8,16 @@ defmodule Chronik.Store.Adapters.Ecto.Blob do
   def type do
     case Application.get_env(:chronik, ChronikRepo)[:adapter] do
       Ecto.Adapters.Postgres ->
-        :'bytea'
+        :bytea
+
       _ ->
-        :'MEDIUMBLOB'
+        :MEDIUMBLOB
     end
   end
 
   def load(blob), do: {:ok, blob}
+
   def dump(blob), do: {:ok, blob}
+
   def cast(binary), do: {:ok, binary}
 end
