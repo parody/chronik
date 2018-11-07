@@ -6,7 +6,7 @@ defmodule Chronik.Store.Adapters.Ecto.Blob do
   alias Chronik.Store.Adapters.Ecto.ChronikRepo
 
   def type do
-    case Application.get_env(:Chronik, ChronikRepo)[:adapter] do
+    case Application.get_env(:chronik, ChronikRepo)[:adapter] do
       Ecto.Adapters.Postgres ->
         :bytea
 

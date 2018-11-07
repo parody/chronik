@@ -30,8 +30,11 @@ defmodule Chronik.Store.Adapters.Ecto do
   @name __MODULE__
   @epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
 
-  @aggregate_compression Application.get_env(:chronik, __MODULE__)[:aggregate_compression_level] || 0
-  @domain_event_compression Application.get_env(:chronik, __MODULE__)[:domain_event_compression_level] || 0
+  @aggregate_compression Application.get_env(:chronik, __MODULE__)[:aggregate_compression_level] ||
+                           0
+  @domain_event_compression Application.get_env(:chronik, __MODULE__)[
+                              :domain_event_compression_level
+                            ] || 0
 
   @dump_json Application.get_env(:chronik, __MODULE__)[:dump_to_json] || false
 
@@ -138,12 +141,14 @@ defmodule Chronik.Store.Adapters.Ecto do
       where: a.id == e.aggregate_id,
       where: a.aggregate == ^aggregate_module,
       where: a.aggregate_id == ^aggregate_id
-    ) |> Repo.delete_all()
+    )
+    |> Repo.delete_all()
 
     from(a in Aggregate,
       where: a.aggregate_id == ^aggregate_id,
       where: a.aggregate == ^aggregate_module
-    ) |> Repo.delete_all()
+    )
+    |> Repo.delete_all()
 
     {:reply, :ok, state}
   end
@@ -240,8 +245,11 @@ defmodule Chronik.Store.Adapters.Ecto do
     |> where(aggregate: ^aggregate)
     |> where(aggregate_id: ^id)
     |> Repo.update_all(
-      set: [snapshot_version: version,
-            snapshot: :erlang.term_to_binary(aggregate_state, compressed: @aggregate_compression)])
+      set: [
+        snapshot_version: version,
+        snapshot: :erlang.term_to_binary(aggregate_state, compressed: @aggregate_compression)
+      ]
+    )
 
     {:reply, :ok, state}
   end
@@ -360,7 +368,8 @@ defmodule Chronik.Store.Adapters.Ecto do
       domain_event(row.domain_event, row.aggregate),
       row.aggregate,
       "#{row.version}",
-      "#{row.aggregate_version}"
+      "#{row.aggregate_version}",
+      row.created
     )
   end
 
@@ -395,11 +404,12 @@ defmodule Chronik.Store.Adapters.Ecto do
 
     %{
       aggregate_id: aggregate_id,
-      domain_event: :erlang.term_to_binary(record.domain_event, compressed: @domain_event_compression),
+      domain_event:
+        :erlang.term_to_binary(record.domain_event, compressed: @domain_event_compression),
       domain_event_json: json,
       aggregate_version: String.to_integer(record.aggregate_version),
       version: String.to_integer(record.version),
-      created: record.created_at |> from_timestamp() |> DateTime.from_erl()
+      created: record.created_at
     }
   end
 
